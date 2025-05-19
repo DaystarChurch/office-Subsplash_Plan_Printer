@@ -499,3 +499,18 @@ else {
     Write-Host "Service ID provided: $serviceid. Skipping service search."
 }
 #endregion
+
+#region Get Service Details
+if ($serviceid) {
+    Write-Host "Getting service details for ID: $serviceid"
+    $serviceDetails = Get-FluroServiceById -AuthToken $token -ServiceId $serviceid
+    if (-not $serviceDetails) {
+        Write-Error "Failed to retrieve service details. Exiting."
+        exit 1
+    }
+}
+else {
+    Write-Error "No service ID provided. Exiting."
+    exit 1
+}
+#endregion
