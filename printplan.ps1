@@ -539,3 +539,19 @@ else {
 }
 #endregion
 
+#region List Teams
+if ($ListTeams) {
+    if (-not $serviceDetails -or -not $serviceDetails.plans -or $serviceDetails.plans.Count -eq 0) {
+        Write-Error "No service details or plans found. Cannot list teams."
+        exit 1
+    }
+    $teams = $serviceDetails.plans[0].teams
+    if (-not $teams -or $teams.Count -eq 0) {
+        Write-Host "No teams found in the plan."
+    } else {
+        Write-Host "Teams in this plan titled '$($serviceDetails.plans[0].title)':"
+        $teams | ForEach-Object { Write-Host "- $_" }
+    }
+    exit 0
+}
+#endregion
