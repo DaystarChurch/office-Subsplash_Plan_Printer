@@ -15,7 +15,9 @@ param (
     [Parameter()]
     [string]$serviceid,
     [Parameter()]
-    [string[]]$Teams
+    [string[]]$Teams,
+    [Parameter()]
+    [string]$configpath
 )
 #region Functions
 function Get-FluroAuthToken {
@@ -334,6 +336,42 @@ function Set-FluroCreds {
 #endregion
 #### Main Script Execution
 
+#region Config Import and Variables
+# Import configuration file if specified
+if ($configpath) {
+    if (Test-Path $configpath) {
+        Write-Host "Importing configuration from $configpath"
+        $config = Get-Content $configpath | ConvertFrom-Json
+    }
+    else {
+        Write-Error "Configuration file not found at $configpath"
+        exit 1
+    }
+}
+# Timezone is set to "America/Edmonton" by default
+# If the timezone is not specified in the config file, use the default
+if ($null -eq $config) {
+    Write-Host "No configuration file found. Using default timezone."
+    $timezone = "America/Edmonton"
+} elseif ($null -eq $config.timezone) {
+    Write-Host "No timezone specified in the configuration file. Using default timezone."
+    $timezone = "America/Edmonton"
+} else {
+    Write-Host "Timezone specified in the configuration file: $($config.timezone)"
+}
+# Output directory is set to the current directory by default
+# If the output directory is not specified in the config file, use the current directory
+if ($null -eq $config) {
+    Write-Host "No configuration file found. Using current directory for output."
+    $outputdir = Get-Location
+} elseif ($null -eq $config.destinationpath) {
+    Write-Host "No output directory specified in the configuration file. Using current directory for output."
+    $outputdir = Get-Location
+} else {
+    Write-Host "Output directory specified in the configuration file: $($config.destinationpath)"
+    $outputdir = $config.destinationpath
+}
+#endregion
 #region Handle "LoginSubsplash" parameter
 if ($LoginSubsplash) {
     Write-Host "Setting up Fluro credentials..."
