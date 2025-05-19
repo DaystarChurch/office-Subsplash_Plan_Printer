@@ -17,6 +17,7 @@ param (
     [Parameter()]
     [string[]]$Teams
 )
+#region Functions
 function Get-FluroAuthToken {
     param(
         [Parameter(Mandatory = $true)]
@@ -304,7 +305,7 @@ function Set-FluroCreds {
         return $null
     }
 }
-
+#endregion
 #### Main Script Execution
 
 #region Handle "LoginSubsplash" parameter
@@ -333,7 +334,6 @@ if ($LoginSubsplash) {
     exit 0
 }
 #endregion
-
 
 #region Saved Credential Management
 # Credentials are saved in fluro.xml in the same directory as this script; password is encrypted. 
@@ -386,6 +386,38 @@ if ($fluroauth.StatusCode -ne 200) {
 else {
     Write-Host "Fluro API authentication successful. Token expires at $($fluroauth.Expiry)."
     $token = $fluroauth.Token
+}
+#endregion
+
+#region List Services
+if ($ListServices) {
+    # Set up the date range for the search (next Sunday to end of that Sunday)
+    $now = Get-Date
+    $localTimezone = "America/Edmonton"
+    $daysUntilSunday = (7 - [int]$now.DayOfWeek) % 7
+    $nextSunday = $now.Date.AddDays($daysUntilSunday)
+    $endDate = $nextSunday.AddDays(1).AddMilliseconds(-1)
+
+    # Create the filter body for the API request
+    $filterBody = New-FluroServiceFilter -StartDate $nextSunday -EndDate $endDate -Timezone $localTimezone
+
+    # Get the services from the API
+    $services = Get-FluroServices -AuthToken $token -FilterBody $filterBody
+
+    if (-not $services -or $services.Count -eq 0) {
+        Write-Host "No services found."
+        exit 0
+    }
+
+    $localTZ = [System.TimeZoneInfo]::Local
+    $services | Select-Object `
+        @{Name="Title";Expression={$_.title}},
+        @{Name="Start (Local)";Expression={ [System.TimeZoneInfo]::ConvertTimeFromUtc([datetime]$_.startDate, $localTZ).ToString("yyyy-MM-dd HH:mm") }},
+        @{Name="End (Local)";Expression={ [System.TimeZoneInfo]::ConvertTimeFromUtc([datetime]$_.endDate, $localTZ).ToString("yyyy-MM-dd HH:mm") }},
+        @{Name="_id";Expression={$_. _id}} |
+        Format-Table -AutoSize
+
+    exit 0
 }
 #endregion
 
