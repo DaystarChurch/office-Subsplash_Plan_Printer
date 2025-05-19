@@ -284,3 +284,70 @@ function Convert-PlanHtmlToPdf {
     # Clean up temp file
     Remove-Item $tempHtml -ErrorAction SilentlyContinue
 }
+
+function Set-FluroCreds {
+
+    $flurocredinput = Get-Credential -Message "Enter your Subsplash credentials"
+    $flurocreds = New-Object System.Management.Automation.PSCredential ($flurocredinput.UserName, $flurocredinput.Password)
+    try {
+        Export-Clixml -Path "fluro.xml" -InputObject $flurocreds -ErrorAction Stop
+        Write-Host "Fluro credentials saved successfully."
+        return $flurocreds
+    }
+    catch {
+        Write-Error "Failed to save Fluro credentials. Please check file permissions."
+        Write-Host "Credentials not saved. Script will not run without saved credentials."
+        Write-Host "Please run the script with -LoginSubsplash to set up credentials after confirming you can write to the directory."
+        return $null
+    }
+}
+### Saved Credential Management
+# Credentials are saved in fluro.xml in the same directory as this script; password is encrypted. 
+# If the file doesn't exist, the script will prompt for credentials and create the file. 
+# If -headless is specified, then the script will exit with an error instead of prompting.
+###
+# Check if the credentials file exists
+if (Get-Item -Path "fluro.xml" -ErrorAction SilentlyContinue) {
+    Write-Host "Fluro credentials found. Loading..."
+    try { 
+        $flurocreds = Import-Clixml -Path "fluro.xml"
+    }
+    catch {
+        Write-Error "Failed to load Fluro credentials. Please check file permissions."
+        Write-Host "Credentials not loaded. Script will not run without saved credentials."
+        Write-Host "Please run the script with -LoginSubsplash to set up credentials after confirming you can write to the directory."
+        exit 1
+    }    
+} elseif ($headless) { # If -headless is specified and the credentials file doesn't exist, exit with an error
+        Write-Error "Credentials not found. Please run the script with -LoginSubsplash to set up credentials."
+        Write-Host "Credentials not found. Script will not run without saved credentials."
+        exit 1
+       Write-Error "Credentials not found. Please run the script with -LoginSubsplash to set up credentials."
+        exit 1
+    } else { # If the credentials file doesn't exist and -headless is not specified, prompt for credentials
+        Write-Host "Subsplash credentials not found. Please enter your credentials."
+        $flurocreds = Set-FluroCreds
+        if ($null -eq $flurocreds) {
+            Write-Error "Failed to set Fluro credentials. Please check file permissions."
+            Write-Host "Credentials not set. Script will not run without saved credentials."
+            exit 1
+        }
+    }
+
+Write-Host "Fluro credentials loaded successfully. Username is $($flurocreds.UserName). Accessing Fluro API..."
+# Test the credentials by getting an auth token
+try {
+    $fluroauth = Get-FluroAuthToken -FluroCreds $flurocreds
+} catch {
+    Write-Error "Failed to authenticate with Fluro API. Please check your credentials."
+    exit 1
+}
+if ($fluroauth.StatusCode -ne 200) {
+    Write-Error "Failed to authenticate with Fluro API. Please check your credentials."
+    exit 1
+} else {
+    Write-Host "Fluro API authentication successful. Token expires at $($fluroauth.Expiry)."
+    $token = $fluroauth.Token
+}
+
+
