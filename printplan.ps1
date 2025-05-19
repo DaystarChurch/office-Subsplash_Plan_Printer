@@ -1,13 +1,37 @@
-
+[CmdletBinding()]
+param (
+    [Parameter()]
+    [switch]$LoginSubsplash,
+    [Parameter()]
+    [switch]$ListTeams,
+    [Parameter()]
+    [switch]$ListServices, 
+    [Parameter()]
+    [switch]$PrintSongs,
+    [Parameter()]
+    [switch]$PrintPlan,
+    [Parameter()]
+    [switch]$Headless,
+    [Parameter()]
+    [string[]]$Teams
+)
 function Get-FluroAuthToken {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$Username,
-        [Parameter(Mandatory = $true)]
-        [SecureString]$Password
+        [pscredential]$FluroCreds
     )
-
-    $body = "grant_type=password&username=$([uri]::EscapeDataString($Username))&password=$([uri]::EscapeDataString($Password))"
+    $UserName = $FluroCreds.UserName
+    if (-not $UserName) {
+        Write-Error "Username is empty. Please provide a valid username."
+        return
+    }
+    $Password = $FluroCreds.Password
+    if (-not $Password) {
+        Write-Error "Password is empty. Please provide a valid password."
+        return
+    }
+    $Password = $($Password | ConvertFrom-SecureString -AsPlainText)
+    $body = "grant_type=password&username=$([uri]::EscapeDataString($UserName))&password=$([uri]::EscapeDataString($Password))"
 
     $headers = @{
         "Content-Type" = "application/x-www-form-urlencoded"
@@ -252,21 +276,3 @@ function Convert-PlanHtmlToPdf {
     # Clean up temp file
     Remove-Item $tempHtml -ErrorAction SilentlyContinue
 }
-
-
-### Date Filtering Setup
-$now = Get-Date
-$localTimezone = "America/Edmonton" # Set your local timezone here reference: https://www.timeanddate.com/time/zones/
-# Find the next Sunday (including today if today is Sunday)
-$daysUntilSunday = (7 - [int]$now.DayOfWeek) % 7
-$nextSunday = $now.Date.AddDays($daysUntilSunday)
-$endDate = $nextSunday.AddDays(1).AddMilliseconds(-1) # End of Sunday
-# Debug information
-Write-Debug "Local Timezone: $localTimezone"
-Write-Debug "Current Date: $now"
-Write-Debug "Days until next Sunday: $daysUntilSunday"
-Write-Debug "Next Sunday: $nextSunday"
-Write-Debug "End Date: $endDate"
-###
-
-#$token = (Get-FluroAuthToken -Username "user" -Password "pass").Token
