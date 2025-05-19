@@ -39,9 +39,17 @@ function Get-FluroAuthToken {
         "Accept"       = "*/*"
     }
 
-    $response = Invoke-RestMethod -Uri "https://api.fluro.io/token/login" -Method Post -Headers $headers -Body $body
+    Try {
+        $response = Invoke-RestMethod -Uri "https://api.fluro.io/token/login" -Method Post -Headers $headers -Body $body -StatusCodeVariable statusCode
+    }
+    Catch {
+        Write-Error "Failed to authenticate with Fluro API. Please check your credentials."
+        return 
+    }
 
     return @{
+        Response = $response
+        StatusCode = $statusCode
         Token  = $response.token
         Expiry = $response.expiry
     }
