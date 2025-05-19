@@ -350,4 +350,17 @@ if ($fluroauth.StatusCode -ne 200) {
     $token = $fluroauth.Token
 }
 
-
+### Date Filtering Setup
+$now = Get-Date
+$localTimezone = "America/Edmonton" # Set your local timezone here reference: https://www.timeanddate.com/time/zones/
+# Find the next Sunday (including today if today is Sunday)
+$daysUntilSunday = (7 - [int]$now.DayOfWeek) % 7
+$nextSunday = $now.Date.AddDays($daysUntilSunday)
+$endDate = $nextSunday.AddDays(1).AddMilliseconds(-1) # End of Sunday
+# Debug information
+Write-Debug "Local Timezone: $localTimezone"
+Write-Debug "Current Date: $now"
+Write-Debug "Days until next Sunday: $daysUntilSunday"
+Write-Debug "Next Sunday: $nextSunday"
+Write-Debug "End Date: $endDate"
+###
