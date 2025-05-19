@@ -301,7 +301,36 @@ function Set-FluroCreds {
         return $null
     }
 }
-### Saved Credential Management
+
+#### Main Script Execution
+
+#region Handle "LoginSubsplash" parameter
+if ($LoginSubsplash) {
+    Write-Host "Setting up Fluro credentials..."
+    $flurocreds = Set-FluroCreds
+    if ($null -eq $flurocreds) {
+        Write-Error "Failed to set Fluro credentials. Please check file permissions."
+        Write-Host "Credentials not set. Script will not run without saved credentials."
+        exit 1
+    }
+    try {
+        $fluroauth = Get-FluroAuthToken -FluroCreds $flurocreds
+    } catch {
+        Write-Error "Failed to authenticate with Fluro API. Please check your credentials."
+        exit 1
+    }
+    if ($fluroauth.StatusCode -ne 200) {
+        Write-Error "Failed to authenticate with Fluro API. Please check your credentials."
+        exit 1
+    } else {
+        Write-Host "FLogin test successful. You can now run the script without specifying -LoginSubsplash."
+    }
+    exit 0
+}
+#endregion
+
+
+#region Saved Credential Management
 # Credentials are saved in fluro.xml in the same directory as this script; password is encrypted. 
 # If the file doesn't exist, the script will prompt for credentials and create the file. 
 # If -headless is specified, then the script will exit with an error instead of prompting.
@@ -321,9 +350,7 @@ if (Get-Item -Path "fluro.xml" -ErrorAction SilentlyContinue) {
 } elseif ($headless) { # If -headless is specified and the credentials file doesn't exist, exit with an error
         Write-Error "Credentials not found. Please run the script with -LoginSubsplash to set up credentials."
         Write-Host "Credentials not found. Script will not run without saved credentials."
-        exit 1
-       Write-Error "Credentials not found. Please run the script with -LoginSubsplash to set up credentials."
-        exit 1
+        exit 1 
     } else { # If the credentials file doesn't exist and -headless is not specified, prompt for credentials
         Write-Host "Subsplash credentials not found. Please enter your credentials."
         $flurocreds = Set-FluroCreds
@@ -349,7 +376,7 @@ if ($fluroauth.StatusCode -ne 200) {
     Write-Host "Fluro API authentication successful. Token expires at $($fluroauth.Expiry)."
     $token = $fluroauth.Token
 }
-
+#endregion
 ### Date Filtering Setup
 $now = Get-Date
 $localTimezone = "America/Edmonton" # Set your local timezone here reference: https://www.timeanddate.com/time/zones/
