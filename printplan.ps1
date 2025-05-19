@@ -13,6 +13,8 @@ param (
     [Parameter()]
     [switch]$Headless,
     [Parameter()]
+    [string]$serviceid,
+    [Parameter()]
     [string[]]$Teams
 )
 function Get-FluroAuthToken {
@@ -48,10 +50,10 @@ function Get-FluroAuthToken {
     }
 
     return @{
-        Response = $response
+        Response   = $response
         StatusCode = $statusCode
-        Token  = $response.token
-        Expiry = $response.expiry
+        Token      = $response.token
+        Expiry     = $response.expiry
     }
 }
 
@@ -66,34 +68,34 @@ function New-FluroServiceFilter {
     )
 
     return @{
-        sort = @{
-            sortKey = "startDate"
+        sort              = @{
+            sortKey       = "startDate"
             sortDirection = "asc"
-            sortType = "date"
+            sortType      = "date"
         }
-        filter = @{
+        filter            = @{
             operator = "and"
-            filters = @(
+            filters  = @(
                 @{
                     operator = "and"
-                    filters = @(
+                    filters  = @(
                         @{
-                            key = "status"
+                            key        = "status"
                             comparator = "in"
-                            values = @("active", "draft", "archived")
+                            values     = @("active", "draft", "archived")
                         }
                     )
                 }
             )
         }
-        search = ""
-        includeArchived = $false
-        allDefinitions = $true
+        search            = ""
+        includeArchived   = $false
+        allDefinitions    = $true
         searchInheritable = $false
-        includeUnmatched = $true
-        startDate = $StartDate.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-        endDate = $EndDate.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-        timezone = $Timezone
+        includeUnmatched  = $true
+        startDate         = $StartDate.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+        endDate           = $EndDate.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+        timezone          = $Timezone
     }
 }
 function Get-FluroServices {
@@ -226,7 +228,8 @@ function New-PlanHtml {
         if ($row.detail) {
             if ($detailText) {
                 $detailText += "<br/>$($row.detail)"
-            } else {
+            }
+            else {
                 $detailText = $row.detail
             }
         }
@@ -315,14 +318,16 @@ if ($LoginSubsplash) {
     }
     try {
         $fluroauth = Get-FluroAuthToken -FluroCreds $flurocreds
-    } catch {
+    }
+    catch {
         Write-Error "Failed to authenticate with Fluro API. Please check your credentials."
         exit 1
     }
     if ($fluroauth.StatusCode -ne 200) {
         Write-Error "Failed to authenticate with Fluro API. Please check your credentials."
         exit 1
-    } else {
+    }
+    else {
         Write-Host "FLogin test successful. You can now run the script without specifying -LoginSubsplash."
     }
     exit 0
@@ -347,47 +352,92 @@ if (Get-Item -Path "fluro.xml" -ErrorAction SilentlyContinue) {
         Write-Host "Please run the script with -LoginSubsplash to set up credentials after confirming you can write to the directory."
         exit 1
     }    
-} elseif ($headless) { # If -headless is specified and the credentials file doesn't exist, exit with an error
-        Write-Error "Credentials not found. Please run the script with -LoginSubsplash to set up credentials."
-        Write-Host "Credentials not found. Script will not run without saved credentials."
-        exit 1 
-    } else { # If the credentials file doesn't exist and -headless is not specified, prompt for credentials
-        Write-Host "Subsplash credentials not found. Please enter your credentials."
-        $flurocreds = Set-FluroCreds
-        if ($null -eq $flurocreds) {
-            Write-Error "Failed to set Fluro credentials. Please check file permissions."
-            Write-Host "Credentials not set. Script will not run without saved credentials."
-            exit 1
-        }
+}
+elseif ($headless) {
+    # If -headless is specified and the credentials file doesn't exist, exit with an error
+    Write-Error "Credentials not found. Please run the script with -LoginSubsplash to set up credentials."
+    Write-Host "Credentials not found. Script will not run without saved credentials."
+    exit 1 
+}
+else {
+    # If the credentials file doesn't exist and -headless is not specified, prompt for credentials
+    Write-Host "Subsplash credentials not found. Please enter your credentials."
+    $flurocreds = Set-FluroCreds
+    if ($null -eq $flurocreds) {
+        Write-Error "Failed to set Fluro credentials. Please check file permissions."
+        Write-Host "Credentials not set. Script will not run without saved credentials."
+        exit 1
     }
+}
 
 Write-Host "Fluro credentials loaded successfully. Username is $($flurocreds.UserName). Accessing Fluro API..."
 # Test the credentials by getting an auth token
 try {
     $fluroauth = Get-FluroAuthToken -FluroCreds $flurocreds
-} catch {
+}
+catch {
     Write-Error "Failed to authenticate with Fluro API. Please check your credentials."
     exit 1
 }
 if ($fluroauth.StatusCode -ne 200) {
     Write-Error "Failed to authenticate with Fluro API. Please check your credentials."
     exit 1
-} else {
+}
+else {
     Write-Host "Fluro API authentication successful. Token expires at $($fluroauth.Expiry)."
     $token = $fluroauth.Token
 }
 #endregion
-### Date Filtering Setup
-$now = Get-Date
-$localTimezone = "America/Edmonton" # Set your local timezone here reference: https://www.timeanddate.com/time/zones/
-# Find the next Sunday (including today if today is Sunday)
-$daysUntilSunday = (7 - [int]$now.DayOfWeek) % 7
-$nextSunday = $now.Date.AddDays($daysUntilSunday)
-$endDate = $nextSunday.AddDays(1).AddMilliseconds(-1) # End of Sunday
-# Debug information
-Write-Debug "Local Timezone: $localTimezone"
-Write-Debug "Current Date: $now"
-Write-Debug "Days until next Sunday: $daysUntilSunday"
-Write-Debug "Next Sunday: $nextSunday"
-Write-Debug "End Date: $endDate"
-###
+
+#region Search for Services 
+if (-not $serviceid) {
+    # Set up the date range for the search (next Sunday to end of that Sunday)
+    $now = Get-Date
+    $localTimezone = "America/Edmonton"
+    $daysUntilSunday = (7 - [int]$now.DayOfWeek) % 7
+    $nextSunday = $now.Date.AddDays($daysUntilSunday)
+    $endDate = $nextSunday.AddDays(1).AddMilliseconds(-1)
+
+    # Create the filter body for the API request
+    $filterBody = New-FluroServiceFilter -StartDate $nextSunday -EndDate $endDate -Timezone $localTimezone
+
+    # Get the services from the API
+    $services = Get-FluroServices -AuthToken $token -FilterBody $filterBody
+
+    # Check if services were retrieved
+    if (-not $services -or $services.Count -eq 0) {
+        Write-Error "No services found."
+        exit 1
+    }
+
+    if ($services.Count -eq 1) {
+        # Only one service found, use its ID
+        $serviceid = $services[0]._id
+        Write-Host "Service ID: $serviceid"
+    }
+    elseif ($services.Count -gt 1) {
+        if ($Headless) {
+            Write-Error "Multiple services found. Please run without -headless to select a service."
+            exit 1
+        }
+        Write-Host "Multiple services found. Please select one:"
+        $localTZ = [System.TimeZoneInfo]::Local
+        $servicesDisplay = $services | Select-Object `
+            @{Name="Title";Expression={$_.title}},
+            @{Name="Start (Local)";Expression={ [System.TimeZoneInfo]::ConvertTimeFromUtc([datetime]$_.startDate, $localTZ).ToString("yyyy-MM-dd HH:mm") }},
+            @{Name="End (Local)";Expression={ [System.TimeZoneInfo]::ConvertTimeFromUtc([datetime]$_.endDate, $localTZ).ToString("yyyy-MM-dd HH:mm") }},
+            @{Name="_id";Expression={$_. _id}}
+
+        $selectedService = $servicesDisplay | Out-GridView -Title "Select a Service" -PassThru
+        if (-not $selectedService) {
+            Write-Error "No service selected. Exiting."
+            exit 1
+        }
+        $serviceid = $selectedService._id
+        Write-Host "Selected Service ID: $serviceid"
+    }
+}
+else {
+    Write-Host "Service ID provided: $serviceid. Skipping service search."
+}
+#endregion
