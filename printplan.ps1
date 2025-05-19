@@ -152,7 +152,7 @@ function New-PlanHtml {
     param(
         [Parameter(Mandatory = $true)]
         [object]$JsonBody,
-        [string[]]$Teams
+        [object]$Teams
     )
 
     # Load JSON
@@ -372,6 +372,7 @@ if ($null -eq $config) {
     $outputdir = $config.destinationpath
 }
 #endregion
+
 #region Handle "LoginSubsplash" parameter
 if ($LoginSubsplash) {
     Write-Host "Setting up Fluro credentials..."
@@ -593,3 +594,44 @@ if ($ListTeams) {
     exit 0
 }
 #endregion
+
+#region Render Plansheet HTML
+# Get list of plansheet profiles
+Write-Host "Getting list of plansheet profiles..."
+if ($config -and $config.planprofiles) {
+    $profilelist = $config.planprofiles
+    Write-Host "Loaded plan profiles from config."
+} else {
+    # Default: single profile with all teams from the plan
+    $allTeams = $serviceDetails.plans[0].teams
+    $profilelist = @(@{ Name = "All Teams"; Teams = $allTeams })
+    Write-Host "No plan profiles found in config. Using default profile with all teams."
+}
+if ($PrintPlan) {
+    if (-not $serviceDetails -or -not $serviceDetails.plans -or $serviceDetails.plans.Count -eq 0) {
+        Write-Error "No service details or plans found. Cannot render plansheet."
+        exit 1
+    }
+    foreach ($profile in $profilelist) {
+        if ($profile.Teams.Count -eq 0) {
+            Write-Host "No teams found in profile '$($profile.Name)'. Skipping..."
+            continue
+        }
+        $Teams = $profile.Teams
+        Write-Host "Rendering plansheet for profile '$($profile.Name)' with teams: $($Teams -join ', ')"
+        $html = New-PlanHtml -JsonBody $serviceDetails -Teams $Teams
+        if ($Headless) {
+            Write-Host "Rendering plansheet in headless mode. Saving to PDF..."
+            $outputFileName = "$($profile.Name)_$($serviceDetails.plans[0].title)_$(Get-Date -Format 'yyyyMMdd_HHmmss').pdf"
+            $outputPath = Join-Path -Path $outputdir -ChildPath $outputFileName
+            Convert-PlanHtmlToPdf -PlanHtml $html -OutPath $outputPath
+            Write-Host "Plansheet saved to: $outputPath"
+        } else {
+            Write-Host "Rendering plansheet in GUI mode. Opening in browser..."
+            $outputFileName = "$($serviceDetails.plans[0].title)_$(Get-Date -Format 'yyyyMMdd_HHmmss').html"
+            $outputPath = Join-Path -Path $outputdir -ChildPath $outputFileName
+            Set-Content -Path $outputPath -Value $html -Encoding UTF8
+            Start-Process "msedge" -ArgumentList "--new-window", "`"$outputPath`""
+        }
+    }
+}
