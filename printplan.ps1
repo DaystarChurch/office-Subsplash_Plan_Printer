@@ -384,7 +384,7 @@ if ($fluroauth.StatusCode -ne 200) {
     exit 1
 }
 else {
-    Write-Host "Fluro API authentication successful. Token expires at $($fluroauth.Expiry)."
+    Write-Host "Fluro API authentication successful."
     $token = $fluroauth.Token
 }
 #endregion
