@@ -120,6 +120,32 @@ function Get-FluroServices {
     return $response
 }
 
+function Get-FluroServiceById {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$AuthToken,
+        [Parameter(Mandatory = $true)]
+        [string]$ServiceId
+    )
+
+    $headers = @{
+        "Authorization" = "Bearer $AuthToken"
+        "Content-Type"  = "application/json"
+        "Accept"        = "*/*"
+    }
+
+    $url = "https://api.fluro.io/content/get/$ServiceId"
+
+    try {
+        $response = Invoke-RestMethod -Uri $url -Method Get -Headers $headers
+        return $response
+    }
+    catch {
+        Write-Error "Failed to retrieve service with ID $ServiceId from Fluro API."
+        return $null
+    }
+}
+
 function New-PlanHtml {
     param(
         [Parameter(Mandatory = $true)]
