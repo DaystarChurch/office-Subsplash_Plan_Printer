@@ -508,9 +508,34 @@ if ($serviceid) {
         Write-Error "Failed to retrieve service details. Exiting."
         exit 1
     }
+
+    # Handle multiple plans
+    if ($serviceDetails.plans.Count -gt 1) {
+        if ($Headless) {
+            Write-Error "More than one plan found for this service. Cannot select a plan in headless mode. Exiting."
+            exit 1
+        } else {
+            Write-Warning "More than one plan found for this service. Please select one:"
+            $plansDisplay = $serviceDetails.plans | Select-Object `
+                @{Name="Index";Expression={ [array]::IndexOf($serviceDetails.plans, $_) }},
+                title,
+                startDate
+            $selectedPlan = $plansDisplay | Out-GridView -Title "Select a Plan" -PassThru
+            if (-not $selectedPlan) {
+                Write-Error "No plan selected. Exiting."
+                exit 1
+            }
+            # Set $serviceDetails.plans to only the selected plan
+            $serviceDetails.plans = @($serviceDetails.plans[$selectedPlan.Index])
+        }
+    } elseif ($serviceDetails.plans.Count -eq 0) {
+        Write-Error "No plans found for this service. Exiting."
+        exit 1
+    }
 }
 else {
     Write-Error "No service ID provided. Exiting."
     exit 1
 }
 #endregion
+
