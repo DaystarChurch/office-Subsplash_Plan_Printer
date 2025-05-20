@@ -155,49 +155,54 @@ function Get-FluroServiceById {
 function New-PlanHtml {
     param(
         [Parameter(Mandatory = $true)]
-        [object]$JsonBody,
+        [object]$servicedetails,
         [object]$Teams,
         [string]$PlanName,
-        [string]$orientation = "landscape"
+        [string]$orientation = "landscape",
+        [string]$CssPath = "print.css"   # Optional: path to CSS file
     )
     Write-Debug "New-PlanHtml function called."
     Write-Debug "PlanName: $PlanName"
     Write-Debug "Orientation: $orientation"
     Write-Debug "Teams: $($Teams | ConvertTo-Json -Depth 10)"
     # Load JSON
-    $json = $JsonBody
 
     # Get teams from JSON if not specified
     if (-not $Teams -or $Teams.Count -eq 0) {
-        $Teams = $json.plans[0].teams
+        $Teams = $servicedetails.plans[0].teams
     }
 
     # Prepare table headers
     $headers = @('Time', 'Detail') + $Teams
 
     # Get plan start time as DateTime (assume UTC in JSON)
-    $planStartUtc = [datetime]::Parse($json.plans[0].startDate)
+    $planStartUtc = [datetime]::Parse($servicedetails.plans[0].startDate)
     $localTZ = [System.TimeZoneInfo]::Local
 
     # Extract service title, date/time, and versioning info
-    $plan = $json.plans[0]
+    $plan = $servicedetails.plans[0]
     $serviceTitle = $plan.title
     $serviceDateTimeUtc = [datetime]::Parse($plan.startDate)
     $serviceDateTimeLocal = [System.TimeZoneInfo]::ConvertTimeFromUtc($serviceDateTimeUtc, [System.TimeZoneInfo]::FindSystemTimeZoneById("Mountain Standard Time"))
     $serviceDateTimeStr = $serviceDateTimeLocal.ToString("dddd, MMMM d, yyyy 'at' h:mm tt")
 
     # Versioning data
-    $lastUpdatedUT = [datetime]::Parse($json.updated)
+    $lastUpdatedUT = [datetime]::Parse($servicedetails.updated)
     $lastUpdatedLocal = [System.TimeZoneInfo]::ConvertTimeFromUtc($lastUpdatedUT, $localTZ).ToString("yyyy-MM-dd hh:mm:ss")
-    $lastUpdatedBy = $json.updatedBy
+    $lastUpdatedBy = $servicedetails.updatedBy
     $printTime = (Get-Date).ToString("yyyy-MM-dd hh:mm:ss")
 
-    # Build HTML
-    $html = @"
-<html>
-<head>
-<style>
-    body {    body { font-family: Segoe UI, Arial, sans-serif; }
+    # Load CSS from file
+    Write-Debug "Trying to load CSS from file. Path: $CssPath"
+    $cssContent = ""
+    if (Test-Path $CssPath) {
+        Write-Debug "CSS file found. Loading content."
+        $cssContent = Get-Content $CssPath -Raw
+    } else {
+        Write-Debug "CSS file not found. Using default CSS."
+        Write-Warning "CSS file '$CssPath' not found. Using default CSS."
+        $cssContent = @"
+    body { font-family: Segoe UI, Arial, sans-serif; }
     .header-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5em; }
     .service-info { }
     .service-title { font-size: 2em; font-weight: bold; margin-bottom: 0.2em; }
@@ -209,10 +214,16 @@ function New-PlanHtml {
     tr.breaker { background: #f9f9f9; font-weight: bold; }
     tr.start { background: #d9f7be; }
     .duration { font-size: 0.9em; color: #888; display: block; }
-    /* Add more CSS as needed */
     @page {margin: 0; size: letter $orientation;}
+"@
+    }
+    # Build HTML
+    $html = @"
+<html>
+<head>
+<style>
+$cssContent
 </style>
-<link rel="stylesheet" type="text/css" href="print.css">
 </head>
 <body>
 <div class="header-row">
@@ -246,7 +257,7 @@ function New-PlanHtml {
     $runningTime = 0
 
     # Loop through each schedule entry
-    foreach ($row in $json.plans[0].schedules) {
+    foreach ($row in $servicedetails.plans[0].schedules) {
         $type = $row.type
         if (-not $type) { $type = "normal" }
         $duration = $row.duration
@@ -706,7 +717,7 @@ if ($PrintPlan) {
         Write-Debug "Teams: $($Teams | ConvertTo-Json -Depth 10)"
         try {
             Write-Debug "Generating HTML for profile '$($profile.Name)'..."
-            $html = New-PlanHtml -JsonBody $serviceDetails -Teams $Teams -PlanName $profile.Name -orientation $config.orientation
+            $html = New-PlanHtml -servicedetails $serviceDetails -Teams $Teams -PlanName $profile.Name -orientation $config.orientation
         }
         catch {
             Write-Error "Failed to generate HTML for profile '$($profile.Name)'. $_"
