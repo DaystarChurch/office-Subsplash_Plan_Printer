@@ -349,49 +349,55 @@ function Set-FluroCreds {
 #region Config Import and Variables
 # Import configuration file if specified
 if ($configpath) {
+    Write-Host "Configuration file specified: $configpath" -ForegroundColor Green
+    # Check if the file exists
     if (Test-Path $configpath) {
-        Write-Host "Importing configuration from $configpath"
+        Write-Host "Importing configuration from $configpath" -ForegroundColor Green
         $config = Get-Content $configpath | ConvertFrom-Json
     }
     else {
-        Write-Error "Configuration file not found at $configpath"
-        exit 1
+        Write-Error "Configuration file not found at $configpath. Continuing with default settings." 
     }
 }
 # Timezone is set to "America/Edmonton" by default
 # If the timezone is not specified in the config file, use the default
 if ($null -eq $config) {
-    Write-Host "No configuration file found. Using default timezone."
+    Write-Host "No configuration file found. Using default timezone America/Edmonton" -ForegroundColor Yellow
     $timezone = "America/Edmonton"
 } elseif ($null -eq $config.timezone) {
-    Write-Host "No timezone specified in the configuration file. Using default timezone."
+    Write-Host "No timezone specified in the configuration file. Using default timezone  America/Edmonton." -ForegroundColor Yellow
     $timezone = "America/Edmonton"
 } else {
-    Write-Host "Timezone specified in the configuration file: $($config.timezone)"
+    Write-Host "Timezone specified in the configuration file: $($config.timezone)" -ForegroundColor Green
+    $timezone = $config.timezone
 }
 # Output directory is set to the current directory by default
 # If the output directory is not specified in the config file, use the current directory
 if ($null -eq $config) {
-    Write-Host "No configuration file found. Using current directory for output."
+    Write-Host "No configuration file found. Using current directory for output." -ForegroundColor Yellow
     $outputdir = Get-Location
 } elseif ($null -eq $config.destinationpath) {
-    Write-Host "No output directory specified in the configuration file. Using current directory for output."
+    Write-Host "No output directory specified in the configuration file. Using current directory for output." -ForegroundColor Yellow
     $outputdir = Get-Location
 } else {
-    Write-Host "Output directory specified in the configuration file: $($config.destinationpath)"
+    Write-Host "Output directory specified in the configuration file: $($config.destinationpath)" -ForegroundColor Green
     $outputdir = $config.destinationpath
 }
 #endregion
 
 #region Handle "LoginSubsplash" parameter
+# If -LoginSubsplash is specified, set up credentials and exit
+# This is useful for setting up credentials without running the rest of the script
 if ($LoginSubsplash) {
-    Write-Host "Setting up Fluro credentials..."
+    Write-Host "Setting up Fluro credentials..." -ForegroundColor Green
     $flurocreds = Set-FluroCreds
     if ($null -eq $flurocreds) {
         Write-Error "Failed to set Fluro credentials. Please check file permissions."
-        Write-Host "Credentials not set. Script will not run without saved credentials."
+        Write-Host "Credentials not set. Script will not run without saved credentials." -ForegroundColor Red
+        Write-Host "Please run the script with -LoginSubsplash to set up credentials after confirming you can write to the directory." -ForegroundColor Red
         exit 1
     }
+    Write-Host "Testing Fluro credentials..." -ForegroundColor Green
     try {
         $fluroauth = Get-FluroAuthToken -FluroCreds $flurocreds
     }
@@ -404,7 +410,7 @@ if ($LoginSubsplash) {
         exit 1
     }
     else {
-        Write-Host "FLogin test successful. You can now run the script without specifying -LoginSubsplash."
+        Write-Host "Login test successful. You can now run the script without specifying -LoginSubsplash." -ForegroundColor Green
     }
     exit 0
 }
@@ -417,35 +423,37 @@ if ($LoginSubsplash) {
 ###
 # Check if the credentials file exists
 if (Get-Item -Path "fluro.xml" -ErrorAction SilentlyContinue) {
-    Write-Host "Fluro credentials found. Loading..."
+    Write-Host "Fluro credentials found. Loading..." -ForegroundColor Green
+    # Load the credentials from the file
     try { 
         $flurocreds = Import-Clixml -Path "fluro.xml"
     }
     catch {
         Write-Error "Failed to load Fluro credentials. Please check file permissions."
-        Write-Host "Credentials not loaded. Script will not run without saved credentials."
-        Write-Host "Please run the script with -LoginSubsplash to set up credentials after confirming you can write to the directory."
+        Write-Host "Credentials not loaded. Script will not run without saved credentials." -ForegroundColor Red
+        Write-Host "Please run the script with -LoginSubsplash to set up credentials after confirming you can write to the directory." -ForegroundColor Red
         exit 1
     }    
 }
 elseif ($headless) {
     # If -headless is specified and the credentials file doesn't exist, exit with an error
     Write-Error "Credentials not found. Please run the script with -LoginSubsplash to set up credentials."
-    Write-Host "Credentials not found. Script will not run without saved credentials."
     exit 1 
 }
 else {
     # If the credentials file doesn't exist and -headless is not specified, prompt for credentials
-    Write-Host "Subsplash credentials not found. Please enter your credentials."
+    Write-Host "Subsplash credentials not found. Please enter your credentials." -ForegroundColor Yellow
     $flurocreds = Set-FluroCreds
     if ($null -eq $flurocreds) {
-        Write-Error "Failed to set Fluro credentials. Please check file permissions."
-        Write-Host "Credentials not set. Script will not run without saved credentials."
+        Write-Error "Failed to set Fluro credentials. Please check file permissions." 
+        Write-Host "Credentials not set. Script will not run without saved credentials." -ForegroundColor Red
+        Write-Host "Please run the script with -LoginSubsplash to set up credentials after confirming you can write to the directory." -ForegroundColor Red
         exit 1
     }
 }
 
-Write-Host "Fluro credentials loaded successfully. Username is $($flurocreds.UserName). Accessing Fluro API..."
+Write-Host "Fluro credentials loaded successfully. Username is $($flurocreds.UserName). Accessing Fluro API..." -ForegroundColor Green
+# Check if the credentials are valid
 # Test the credentials by getting an auth token
 try {
     $fluroauth = Get-FluroAuthToken -FluroCreds $flurocreds
@@ -459,7 +467,7 @@ if ($fluroauth.StatusCode -ne 200) {
     exit 1
 }
 else {
-    Write-Host "Fluro API authentication successful."
+    Write-Host "Fluro API authentication successful." -ForegroundColor Green
     $token = $fluroauth.Token
 }
 #endregion
@@ -475,12 +483,12 @@ if ($ListServices) {
 
     # Create the filter body for the API request
     $filterBody = New-FluroServiceFilter -StartDate $nextSunday -EndDate $endDate -Timezone $localTimezone
-
+    Write-Host "Getting list of services from Fluro API..." -ForegroundColor Green
     # Get the services from the API
     $services = Get-FluroServices -AuthToken $token -FilterBody $filterBody
 
     if (-not $services -or $services.Count -eq 0) {
-        Write-Host "No services found."
+        Write-Host "No services found." -ForegroundColor Yellow
         exit 0
     }
 
@@ -507,7 +515,7 @@ if (-not $serviceid) {
 
     # Create the filter body for the API request
     $filterBody = New-FluroServiceFilter -StartDate $nextSunday -EndDate $endDate -Timezone $localTimezone
-
+    Write-Host "Getting list of services from Fluro API..." -ForegroundColor Green
     # Get the services from the API
     $services = Get-FluroServices -AuthToken $token -FilterBody $filterBody
 
@@ -520,14 +528,16 @@ if (-not $serviceid) {
     if ($services.Count -eq 1) {
         # Only one service found, use its ID
         $serviceid = $services[0]._id
-        Write-Host "Service ID: $serviceid"
+        Write-Host "Service ID: $serviceid" -ForegroundColor Green
+        Write-Host "Service Title: $($services[0].title)" -ForegroundColor Green
     }
     elseif ($services.Count -gt 1) {
         if ($Headless) {
-            Write-Error "Multiple services found. Please run without -headless to select a service."
+            Write-Error "Multiple services found. Please run without -headless to select a service." 
             exit 1
         }
-        Write-Host "Multiple services found. Please select one:"
+        Write-Host "Multiple services found. Please select one:" -ForegroundColor Yellow
+        # Display the services in a grid view for selection
         $localTZ = [System.TimeZoneInfo]::Local
         $servicesDisplay = $services | Select-Object `
             @{Name="Title";Expression={$_.title}},
@@ -541,17 +551,18 @@ if (-not $serviceid) {
             exit 1
         }
         $serviceid = $selectedService._id
-        Write-Host "Selected Service ID: $serviceid"
+        Write-Host "Selected Service ID: $serviceid" -ForegroundColor Green
+        Write-Host "Selected Service Title: $($selectedService.title)" -ForegroundColor Green
     }
 }
 else {
-    Write-Host "Service ID provided: $serviceid. Skipping service search."
+    Write-Host "Service ID provided: $serviceid. Skipping service search." -ForegroundColor Green
 }
 #endregion
 
 #region Get Service Details
 if ($serviceid) {
-    Write-Host "Getting service details for ID: $serviceid"
+    Write-Host "Getting service details for ID: $serviceid" -ForegroundColor Green
     $serviceDetails = Get-FluroServiceById -AuthToken $token -ServiceId $serviceid
     if (-not $serviceDetails) {
         Write-Error "Failed to retrieve service details. Exiting."
@@ -596,10 +607,10 @@ if ($ListTeams) {
     }
     $teams = $serviceDetails.plans[0].teams
     if (-not $teams -or $teams.Count -eq 0) {
-        Write-Host "No teams found in the plan."
+        Write-Host "No teams found in the plan." -ForegroundColor Yellow
     } else {
         Write-Host "Teams in this plan titled '$($serviceDetails.plans[0].title)':"
-        $teams | ForEach-Object { Write-Host "- $_" }
+        $teams | ForEach-Object { Write-Host "- $_" -ForegroundColor White}
     }
     exit 0
 }
@@ -607,31 +618,31 @@ if ($ListTeams) {
 
 #region Render Plansheet HTML
 # Get list of plansheet profiles
-Write-Host "Getting list of plansheet profiles..."
+Write-Host "Getting list of plansheet profiles..." -ForegroundColor Green
 if ($config -and $config.planprofiles) {
     $profilelist = $config.planprofiles
-    Write-Host "Loaded plan profiles from config."
+    Write-Host "Loaded plan profiles from config." -ForegroundColor Green
     Write-Debug "Plan profiles: $($profilelist | ConvertTo-Json -Depth 10)"
 } else {
     # Default: single profile with all teams from the plan
     $allTeams = $serviceDetails.plans[0].teams
     $profilelist = @(@{ Name = "All Teams"; Teams = $allTeams })
-    Write-Host "No plan profiles found in config. Using default profile with all teams."
+    Write-Host "No plan profiles found in config. Using default profile with all teams." -ForegroundColor Yellow
 }
 if ($PrintPlan) {
     if (-not $serviceDetails -or -not $serviceDetails.plans -or $serviceDetails.plans.Count -eq 0) {
-        Write-Error "No service details or plans found. Cannot render plansheet."
+        Write-Error "No service details or plans found. Cannot render plansheet." 
         exit 1
     }
     foreach ($profile in $profilelist) {
         if ($profile.Teams.Count -eq 0) {
-            Write-Host "No teams found in profile '$($profile.Name)'. Skipping..."
+            Write-Host "No teams found in profile '$($profile.Name)'. Skipping..." -ForegroundColor Red
             continue
         }
         $Teams = $profile.Teams
         $safeProfileName = ($profile.Name -replace '[^a-zA-Z0-9\-]', '-').Trim('-') -replace '-+', '-'
         $safePlanTitle = ($serviceDetails.plans[0].title -replace '[^a-zA-Z0-9\-]', '-').Trim('-') -replace '-+', '-'
-        Write-Host "Rendering plansheet for profile '$($profile.Name)' with teams: $($Teams -join ', ')"
+        Write-Host "Rendering plansheet for profile '$($profile.Name)' with teams: $($Teams -join ', ')" -ForegroundColor Green
         Write-Debug "Teams: $($Teams | ConvertTo-Json -Depth 10)"
         try {
             $html = New-PlanHtml -JsonBody $serviceDetails -Teams $Teams -PlanName $profile.Name
@@ -642,20 +653,20 @@ if ($PrintPlan) {
         }
         #write-Debug "$html"
         if ($Headless) {
-            Write-Host "Rendering plansheet in headless mode. Saving to PDF..."
+            Write-Host "Rendering plansheet in headless mode. Saving to PDF..." -ForegroundColor Green
             $outputFileName = "$safeProfileName_$safePlanTitle_$(Get-Date -Format 'yyyyMMdd_HHmm').pdf"
             $outputPath = Join-Path -Path $outputdir -ChildPath $outputFileName
             Write-Debug "Output path: $outputPath"
             try {
             Convert-PlanHtmlToPdf -PlanHtml $html -OutPath $outputPath
-            Write-Host "Plansheet saved to: $outputPath"
+            Write-Host "Plansheet saved to: $outputPath" -ForegroundColor Magenta
             }
             catch {
             Write-Error "Failed to convert HTML to PDF or save to $outputPath. $_"
             continue
             }
         } else {
-            Write-Host "Rendering plansheet in GUI mode. Opening in browser..."
+            Write-Host "Rendering plansheet in GUI mode. Opening in browser..." -ForegroundColor Green
             $outputFileName = "$safeProfileName-$safePlanTitle-$(Get-Date -Format 'yyyyMMdd_HHmm').html"
             $outputPath = Join-Path -Path $outputdir -ChildPath $outputFileName
             Write-Debug "Output path: $outputPath"
@@ -666,6 +677,8 @@ if ($PrintPlan) {
                 Write-Error "Failed to write HTML to $outputPath. $_"
                 continue
             }
+            Write-Host "Plansheet saved to: $outputPath" -ForegroundColor Magenta
+            # Open the HTML file in MSEdge
             try {
                 Start-Process "msedge" -ArgumentList "--new-tab", "`"$outputPath`""
             }
