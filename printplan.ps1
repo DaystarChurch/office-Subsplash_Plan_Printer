@@ -25,7 +25,9 @@ function Get-FluroAuthToken {
         [Parameter(Mandatory = $true)]
         [pscredential]$FluroCreds
     )
+    Write-Debug "Get-FluroAuthToken function called."
     $UserName = $FluroCreds.UserName
+    Write-Debug "Username: $UserName"
     if (-not $UserName) {
         Write-Error "Username is empty. Please provide a valid username."
         return
@@ -35,9 +37,10 @@ function Get-FluroAuthToken {
         Write-Error "Password is empty. Please provide a valid password."
         return
     }
+    Write-Debug "Converting password to plain text for auth string."
     $Password = $($Password | ConvertFrom-SecureString -AsPlainText)
+    Write-Debug "Constructing body for authentication request."
     $body = "grant_type=password&username=$([uri]::EscapeDataString($UserName))&password=$([uri]::EscapeDataString($Password))"
-
     $headers = @{
         "Content-Type" = "application/x-www-form-urlencoded"
         "User-Agent"   = "PowerShell"
@@ -45,11 +48,12 @@ function Get-FluroAuthToken {
     }
 
     Try {
+        Write-Debug "Sending authentication request to Fluro API."
         $response = Invoke-RestMethod -Uri "https://api.fluro.io/token/login" -Method Post -Headers $headers -Body $body -StatusCodeVariable statusCode
     }
     Catch {
-        Write-Error "Failed to authenticate with Fluro API. Please check your credentials."
-        return 
+        Write-Error "Failed to authenticate with Fluro API. $_"
+        return $_
     }
 
     return @{
