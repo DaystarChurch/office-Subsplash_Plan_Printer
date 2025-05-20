@@ -624,6 +624,8 @@ if ($PrintPlan) {
             continue
         }
         $Teams = $profile.Teams
+        $safeProfileName = ($profile.Name -replace '[^a-zA-Z0-9\-]', '-').Trim('-') -replace '-+', '-'
+        $safePlanTitle = ($serviceDetails.plans[0].title -replace '[^a-zA-Z0-9\-]', '-').Trim('-') -replace '-+', '-'
         Write-Host "Rendering plansheet for profile '$($profile.Name)' with teams: $($Teams -join ', ')"
         Write-Debug "Teams: $($Teams | ConvertTo-Json -Depth 10)"
         try {
@@ -636,7 +638,7 @@ if ($PrintPlan) {
         #write-Debug "$html"
         if ($Headless) {
             Write-Host "Rendering plansheet in headless mode. Saving to PDF..."
-            $outputFileName = "$($profile.Name)_$($serviceDetails.plans[0].title)_$(Get-Date -Format 'yyyyMMdd_HHmmss').pdf"
+            $outputFileName = "$safeProfileName_$safePlanTitle_$(Get-Date -Format 'yyyyMMdd_HHmm').pdf"
             $outputPath = Join-Path -Path $outputdir -ChildPath $outputFileName
             Write-Debug "Output path: $outputPath"
             try {
@@ -649,7 +651,7 @@ if ($PrintPlan) {
             }
         } else {
             Write-Host "Rendering plansheet in GUI mode. Opening in browser..."
-            $outputFileName = "$($profile.Name)_$($serviceDetails.plans[0].title)_$(Get-Date -Format 'yyyyMMdd_HHmmss').html"
+            $outputFileName = "$safeProfileName-$safePlanTitle-$(Get-Date -Format 'yyyyMMdd_HHmm').html"
             $outputPath = Join-Path -Path $outputdir -ChildPath $outputFileName
             Write-Debug "Output path: $outputPath"
             try {
@@ -660,7 +662,7 @@ if ($PrintPlan) {
                 continue
             }
             try {
-                Start-Process "msedge" -ArgumentList "--new-window", "`"$outputPath`""
+                Start-Process "msedge" -ArgumentList "--new-tab", "`"$outputPath`""
             }
             catch {
                 Write-Error "Failed to open $outputPath in browser. $_"
