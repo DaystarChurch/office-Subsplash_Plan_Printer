@@ -299,6 +299,7 @@ function Convert-PlanHtmlToPdf {
     # Create a temporary HTML file
     $tempHtml = [System.IO.Path]::GetTempFileName() -replace '\.tmp$', '.html'
     Set-Content -Path $tempHtml -Value $PlanHtml -Encoding UTF8
+    Write-Debug "Temporary HTML file created at: $tempHtml"
 
     # Build msedge command
     $msedgePath = "msedge"
@@ -311,7 +312,7 @@ function Convert-PlanHtmlToPdf {
     ) -join ' '
 
     # Run msedge to print to PDF
-    $process = Start-Process -FilePath $msedgePath -ArgumentList $arguments -NoNewWindow -Wait -PassThru
+    $process = Start-Process -FilePath msedge -ArgumentList $arguments -NoNewWindow -Wait -PassThru
 
     # Clean up temp file
     Remove-Item $tempHtml -ErrorAction SilentlyContinue
@@ -601,6 +602,7 @@ Write-Host "Getting list of plansheet profiles..."
 if ($config -and $config.planprofiles) {
     $profilelist = $config.planprofiles
     Write-Host "Loaded plan profiles from config."
+    Write-Debug "Plan profiles: $($profilelist | ConvertTo-Json -Depth 10)"
 } else {
     # Default: single profile with all teams from the plan
     $allTeams = $serviceDetails.plans[0].teams
@@ -619,19 +621,46 @@ if ($PrintPlan) {
         }
         $Teams = $profile.Teams
         Write-Host "Rendering plansheet for profile '$($profile.Name)' with teams: $($Teams -join ', ')"
-        $html = New-PlanHtml -JsonBody $serviceDetails -Teams $Teams
+        Write-Debug "Teams: $($Teams | ConvertTo-Json -Depth 10)"
+        try {
+            $html = New-PlanHtml -JsonBody $serviceDetails -Teams $Teams -PlanName $profile.Name
+        }
+        catch {
+            Write-Error "Failed to generate HTML for profile '$($profile.Name)'. $_"
+            continue
+        }
+        #write-Debug "$html"
         if ($Headless) {
             Write-Host "Rendering plansheet in headless mode. Saving to PDF..."
             $outputFileName = "$($profile.Name)_$($serviceDetails.plans[0].title)_$(Get-Date -Format 'yyyyMMdd_HHmmss').pdf"
             $outputPath = Join-Path -Path $outputdir -ChildPath $outputFileName
+            Write-Debug "Output path: $outputPath"
+            try {
             Convert-PlanHtmlToPdf -PlanHtml $html -OutPath $outputPath
             Write-Host "Plansheet saved to: $outputPath"
+            }
+            catch {
+            Write-Error "Failed to convert HTML to PDF or save to $outputPath. $_"
+            continue
+            }
         } else {
             Write-Host "Rendering plansheet in GUI mode. Opening in browser..."
-            $outputFileName = "$($serviceDetails.plans[0].title)_$(Get-Date -Format 'yyyyMMdd_HHmmss').html"
+            $outputFileName = "$($profile.Name)_$($serviceDetails.plans[0].title)_$(Get-Date -Format 'yyyyMMdd_HHmmss').html"
             $outputPath = Join-Path -Path $outputdir -ChildPath $outputFileName
-            Set-Content -Path $outputPath -Value $html -Encoding UTF8
-            Start-Process "msedge" -ArgumentList "--new-window", "`"$outputPath`""
+            Write-Debug "Output path: $outputPath"
+            try {
+                Set-Content -Path $outputPath -Value $html -Encoding UTF8
+            }
+            catch {
+                Write-Error "Failed to write HTML to $outputPath. $_"
+                continue
+            }
+            try {
+                Start-Process "msedge" -ArgumentList "--new-window", "`"$outputPath`""
+            }
+            catch {
+                Write-Error "Failed to open $outputPath in browser. $_"
+            }
         }
     }
 }
