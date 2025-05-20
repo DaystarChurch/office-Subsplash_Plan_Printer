@@ -305,21 +305,26 @@ function Convert-PlanHtmlToPdf {
     Set-Content -Path $tempHtml -Value $PlanHtml -Encoding UTF8
     Write-Debug "Temporary HTML file created at: $tempHtml"
 
-    # Build msedge command
-    $msedgePath = "msedge"
-    $arguments = @(
-        "--headless"
-        "--disable-gpu"
-        "--run-all-compositor-stages-before-draw"
-        "--print-to-pdf=""$OutPath"""
-        "`"$tempHtml`""
-    ) -join ' '
-
-    # Run msedge to print to PDF
-    $process = Start-Process -FilePath msedge -ArgumentList $arguments -NoNewWindow -Wait -PassThru
-
-    # Clean up temp file
-    Remove-Item $tempHtml -ErrorAction SilentlyContinue
+    try {
+        # Run msedge to print to PDF
+        $process = Start-Process msedge -Wait -PassThru -ArgumentList "--headless", "--run-all-compositor-stages-before-draw", "--print-to-pdf=""$OutPath""", "--disable-gpu", "`"$tempHtml`"" *> $null
+        if ($process.ExitCode -ne 0) {
+            Write-Error "msedge exited with code $($process.ExitCode). PDF may not have been created."
+        }
+    }
+    catch {
+        Write-Error "Failed to run msedge for PDF conversion: $_"
+        throw
+    }
+    finally {
+        # Clean up temp file
+        try {
+            Remove-Item $tempHtml -ErrorAction SilentlyContinue
+        }
+        catch {
+            Write-Warning "Failed to remove temporary HTML file: $tempHtml"
+        }
+    }
 }
 
 function Set-FluroCreds {
