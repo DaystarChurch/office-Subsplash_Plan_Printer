@@ -152,7 +152,8 @@ function New-PlanHtml {
     param(
         [Parameter(Mandatory = $true)]
         [object]$JsonBody,
-        [object]$Teams
+        [object]$Teams,
+        [string]$PlanName
     )
 
     # Load JSON
@@ -208,6 +209,9 @@ function New-PlanHtml {
     <div class="service-info">
         <div class="service-title">$serviceTitle</div>
         <div class="service-subtitle">$serviceDateTimeStr</div>
+    </div>
+    <div class="plansheet-info">
+        <div class="plan-name">$PlanName</div>
     </div>
     <div class="version-info">
         <div><strong>Last updated:</strong> $lastUpdatedLocal</div>
