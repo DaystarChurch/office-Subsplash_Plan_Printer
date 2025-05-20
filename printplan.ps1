@@ -348,10 +348,14 @@ function Set-FluroCreds {
 
 #region Config Import and Variables
 # Import configuration file if specified
+Write-Debug "Config file handling"
+Write-Debug "Config path: $configpath"
 if ($configpath) {
+    Write-Debug "Config file specified: $configpath"
     Write-Host "Configuration file specified: $configpath" -ForegroundColor Green
     # Check if the file exists
     if (Test-Path $configpath) {
+        Write-Debug "Config file found: $configpath"
         Write-Host "Importing configuration from $configpath" -ForegroundColor Green
         $config = Get-Content $configpath | ConvertFrom-Json
     }
@@ -361,6 +365,7 @@ if ($configpath) {
 }
 # Timezone is set to "America/Edmonton" by default
 # If the timezone is not specified in the config file, use the default
+Write-Debug "Timezone handling"
 if ($null -eq $config) {
     Write-Host "No configuration file found. Using default timezone America/Edmonton" -ForegroundColor Yellow
     $timezone = "America/Edmonton"
@@ -373,6 +378,7 @@ if ($null -eq $config) {
 }
 # Output directory is set to the current directory by default
 # If the output directory is not specified in the config file, use the current directory
+Write-Debug "Output directory handling"
 if ($null -eq $config) {
     Write-Host "No configuration file found. Using current directory for output." -ForegroundColor Yellow
     $outputdir = Get-Location
@@ -389,6 +395,7 @@ if ($null -eq $config) {
 # If -LoginSubsplash is specified, set up credentials and exit
 # This is useful for setting up credentials without running the rest of the script
 if ($LoginSubsplash) {
+    Write-Debug "LoginSubsplash parameter specified. Setting up credentials and exiting."
     Write-Host "Setting up Fluro credentials..." -ForegroundColor Green
     $flurocreds = Set-FluroCreds
     if ($null -eq $flurocreds) {
@@ -422,6 +429,8 @@ if ($LoginSubsplash) {
 # If -headless is specified, then the script will exit with an error instead of prompting.
 ###
 # Check if the credentials file exists
+Write-Debug "Main Script Credential handling"
+Write-Debug "Checking for fluro.xml file"
 if (Get-Item -Path "fluro.xml" -ErrorAction SilentlyContinue) {
     Write-Host "Fluro credentials found. Loading..." -ForegroundColor Green
     # Load the credentials from the file
@@ -429,6 +438,7 @@ if (Get-Item -Path "fluro.xml" -ErrorAction SilentlyContinue) {
         $flurocreds = Import-Clixml -Path "fluro.xml"
     }
     catch {
+        Write-Debug "Failed to load credentials from fluro.xml. $_"
         Write-Error "Failed to load Fluro credentials. Please check file permissions."
         Write-Host "Credentials not loaded. Script will not run without saved credentials." -ForegroundColor Red
         Write-Host "Please run the script with -LoginSubsplash to set up credentials after confirming you can write to the directory." -ForegroundColor Red
@@ -436,11 +446,13 @@ if (Get-Item -Path "fluro.xml" -ErrorAction SilentlyContinue) {
     }    
 }
 elseif ($headless) {
+    Write-Debug "Headless mode specified. Checking for credentials file."
     # If -headless is specified and the credentials file doesn't exist, exit with an error
     Write-Error "Credentials not found. Please run the script with -LoginSubsplash to set up credentials."
     exit 1 
 }
 else {
+    Write-Debug "Credentials file not found. Prompting for credentials."
     # If the credentials file doesn't exist and -headless is not specified, prompt for credentials
     Write-Host "Subsplash credentials not found. Please enter your credentials." -ForegroundColor Yellow
     $flurocreds = Set-FluroCreds
@@ -455,14 +467,18 @@ else {
 Write-Host "Fluro credentials loaded successfully. Username is $($flurocreds.UserName). Accessing Fluro API..." -ForegroundColor Green
 # Check if the credentials are valid
 # Test the credentials by getting an auth token
+Write-Debug "Testing Fluro credentials..."
 try {
     $fluroauth = Get-FluroAuthToken -FluroCreds $flurocreds
 }
 catch {
-    Write-Error "Failed to authenticate with Fluro API. Please check your credentials."
+    Write-Debug "Function to authenticate with Fluro API failed."
+    Write-Error "Failed to authenticate with Fluro API. $_"
     exit 1
 }
 if ($fluroauth.StatusCode -ne 200) {
+    Write-Debug "Fluro API authentication failed. Status code: $($fluroauth.StatusCode)"
+    Write-Debug "Fluro API authentication failed. Response: $($fluroauth.Response | ConvertTo-Json -Depth 10)"
     Write-Error "Failed to authenticate with Fluro API. Please check your credentials."
     exit 1
 }
@@ -474,6 +490,7 @@ else {
 
 #region List Services
 if ($ListServices) {
+    Write-Debug "ListServices parameter specified. Listing services."
     # Set up the date range for the search (next Sunday to end of that Sunday)
     $now = Get-Date
     $localTimezone = "America/Edmonton"
@@ -482,16 +499,20 @@ if ($ListServices) {
     $endDate = $nextSunday.AddDays(1).AddMilliseconds(-1)
 
     # Create the filter body for the API request
+    Write-Debug "Creating filter body for API request."
     $filterBody = New-FluroServiceFilter -StartDate $nextSunday -EndDate $endDate -Timezone $localTimezone
     Write-Host "Getting list of services from Fluro API..." -ForegroundColor Green
     # Get the services from the API
+    Write-Debug "Getting services from Fluro API..."
     $services = Get-FluroServices -AuthToken $token -FilterBody $filterBody
 
     if (-not $services -or $services.Count -eq 0) {
         Write-Host "No services found." -ForegroundColor Yellow
         exit 0
     }
-
+    Write-Debug "Services found: $($services.Count)"
+    Write-Debug "Services: $($services | ConvertTo-Json -Depth 10)"
+    Write-Debug "Displaying services in grid view."
     $localTZ = [System.TimeZoneInfo]::Local
     $services | Select-Object `
         @{Name="Title";Expression={$_.title}},
@@ -499,24 +520,27 @@ if ($ListServices) {
         @{Name="End (Local)";Expression={ [System.TimeZoneInfo]::ConvertTimeFromUtc([datetime]$_.endDate, $localTZ).ToString("yyyy-MM-dd HH:mm") }},
         @{Name="_id";Expression={$_. _id}} |
         Format-Table -AutoSize
-
+    Write-Debug "Exiting after listing services."
     exit 0
 }
 #endregion
 
 #region Search for Services 
+Write-Debug "Search for Services"
 if (-not $serviceid) {
+    Write-Debug "No service ID provided. Searching for services."
     # Set up the date range for the search (next Sunday to end of that Sunday)
     $now = Get-Date
-    $localTimezone = "America/Edmonton"
+    $localTimezone = $timezone
     $daysUntilSunday = (7 - [int]$now.DayOfWeek) % 7
     $nextSunday = $now.Date.AddDays($daysUntilSunday)
     $endDate = $nextSunday.AddDays(1).AddMilliseconds(-1)
 
-    # Create the filter body for the API request
+    Write-Debug "Create the filter body for the API request"
     $filterBody = New-FluroServiceFilter -StartDate $nextSunday -EndDate $endDate -Timezone $localTimezone
     Write-Host "Getting list of services from Fluro API..." -ForegroundColor Green
     # Get the services from the API
+    Write-Debug "Getting services from Fluro API..."
     $services = Get-FluroServices -AuthToken $token -FilterBody $filterBody
 
     # Check if services were retrieved
@@ -536,6 +560,7 @@ if (-not $serviceid) {
             Write-Error "Multiple services found. Please run without -headless to select a service." 
             exit 1
         }
+        Write-Debug "Multiple services found. Displaying in grid view."
         Write-Host "Multiple services found. Please select one:" -ForegroundColor Yellow
         # Display the services in a grid view for selection
         $localTZ = [System.TimeZoneInfo]::Local
@@ -556,15 +581,19 @@ if (-not $serviceid) {
     }
 }
 else {
+    Write-Debug "Service ID provided: $serviceid"
     Write-Host "Service ID provided: $serviceid. Skipping service search." -ForegroundColor Green
 }
 #endregion
 
 #region Get Service Details
+Write-Debug "Get Service Details"
 if ($serviceid) {
+    Write-Debug "Service ID provided: $serviceid"
     Write-Host "Getting service details for ID: $serviceid" -ForegroundColor Green
     $serviceDetails = Get-FluroServiceById -AuthToken $token -ServiceId $serviceid
     if (-not $serviceDetails) {
+        Write-Debug "Function to get service details failed. $_"
         Write-Error "Failed to retrieve service details. Exiting."
         exit 1
     }
@@ -572,10 +601,12 @@ if ($serviceid) {
     # Handle multiple plans
     if ($serviceDetails.plans.Count -gt 1) {
         if ($Headless) {
+            Write-Debug "Headless mode specified. More than one plan found for this service."
             Write-Error "More than one plan found for this service. Cannot select a plan in headless mode. Exiting."
             exit 1
         } else {
             Write-Warning "More than one plan found for this service. Please select one:"
+            write-Debug "Displaying plans in grid view."
             $plansDisplay = $serviceDetails.plans | Select-Object `
                 @{Name="Index";Expression={ [array]::IndexOf($serviceDetails.plans, $_) }},
                 title,
@@ -586,6 +617,7 @@ if ($serviceid) {
                 exit 1
             }
             # Set $serviceDetails.plans to only the selected plan
+            Write-Debug "Selected plan: $($selectedPlan.title)"
             $serviceDetails.plans = @($serviceDetails.plans[$selectedPlan.Index])
         }
     } elseif ($serviceDetails.plans.Count -eq 0) {
@@ -601,6 +633,7 @@ else {
 
 #region List Teams
 if ($ListTeams) {
+    Write-Debug "ListTeams parameter specified. Listing teams."
     if (-not $serviceDetails -or -not $serviceDetails.plans -or $serviceDetails.plans.Count -eq 0) {
         Write-Error "No service details or plans found. Cannot list teams."
         exit 1
@@ -618,6 +651,8 @@ if ($ListTeams) {
 
 #region Render Plansheet HTML
 # Get list of plansheet profiles
+Write-Debug "Plansheet Rendering"
+Write-Debug "Getting list of plansheet profiles..."
 Write-Host "Getting list of plansheet profiles..." -ForegroundColor Green
 if ($config -and $config.planprofiles) {
     $profilelist = $config.planprofiles
@@ -625,15 +660,18 @@ if ($config -and $config.planprofiles) {
     Write-Debug "Plan profiles: $($profilelist | ConvertTo-Json -Depth 10)"
 } else {
     # Default: single profile with all teams from the plan
+    Write-Debug "No plan profiles found in config. Using default profile with all teams."
     $allTeams = $serviceDetails.plans[0].teams
     $profilelist = @(@{ Name = "All Teams"; Teams = $allTeams })
     Write-Host "No plan profiles found in config. Using default profile with all teams." -ForegroundColor Yellow
 }
 if ($PrintPlan) {
+    Write-Debug "PrintPlan parameter specified. Rendering plansheet."
     if (-not $serviceDetails -or -not $serviceDetails.plans -or $serviceDetails.plans.Count -eq 0) {
         Write-Error "No service details or plans found. Cannot render plansheet." 
         exit 1
     }
+    Write-Debug "Rendering plansheet for service ID: $serviceid, looping though profiles."
     foreach ($profile in $profilelist) {
         if ($profile.Teams.Count -eq 0) {
             Write-Host "No teams found in profile '$($profile.Name)'. Skipping..." -ForegroundColor Red
@@ -645,6 +683,7 @@ if ($PrintPlan) {
         Write-Host "Rendering plansheet for profile '$($profile.Name)' with teams: $($Teams -join ', ')" -ForegroundColor Green
         Write-Debug "Teams: $($Teams | ConvertTo-Json -Depth 10)"
         try {
+            Write-Debug "Generating HTML for profile '$($profile.Name)'..."
             $html = New-PlanHtml -JsonBody $serviceDetails -Teams $Teams -PlanName $profile.Name
         }
         catch {
@@ -653,33 +692,40 @@ if ($PrintPlan) {
         }
         #write-Debug "$html"
         if ($Headless) {
+            Write-Debug "Headless mode specified. Saving to PDF."
             Write-Host "Rendering plansheet in headless mode. Saving to PDF..." -ForegroundColor Green
             $outputFileName = "$safeProfileName_$safePlanTitle_$(Get-Date -Format 'yyyyMMdd_HHmm').pdf"
             $outputPath = Join-Path -Path $outputdir -ChildPath $outputFileName
             Write-Debug "Output path: $outputPath"
             try {
-            Convert-PlanHtmlToPdf -PlanHtml $html -OutPath $outputPath
-            Write-Host "Plansheet saved to: $outputPath" -ForegroundColor Magenta
+                Write-Debug "Converting HTML to PDF..."
+                Convert-PlanHtmlToPdf -PlanHtml $html -OutPath $outputPath
+                Write-Host "Plansheet saved to: $outputPath" -ForegroundColor Magenta
             }
             catch {
-            Write-Error "Failed to convert HTML to PDF or save to $outputPath. $_"
-            continue
+                Write-Debug "Failed to convert HTML to PDF. $_"
+                Write-Error "Failed to convert HTML to PDF or save to $outputPath. $_"
+                continue
             }
         } else {
+            Write-Debug "GUI mode specified. Saving to HTML."
             Write-Host "Rendering plansheet in GUI mode. Opening in browser..." -ForegroundColor Green
             $outputFileName = "$safeProfileName-$safePlanTitle-$(Get-Date -Format 'yyyyMMdd_HHmm').html"
             $outputPath = Join-Path -Path $outputdir -ChildPath $outputFileName
             Write-Debug "Output path: $outputPath"
             try {
+                Write-Debug "Writing HTML to file..."
                 Set-Content -Path $outputPath -Value $html -Encoding UTF8
             }
             catch {
+                Write-Debug "Failed to write HTML to file. $_"
                 Write-Error "Failed to write HTML to $outputPath. $_"
                 continue
             }
             Write-Host "Plansheet saved to: $outputPath" -ForegroundColor Magenta
             # Open the HTML file in MSEdge
             try {
+                Write-Debug "Opening HTML file in browser..."
                 Start-Process "msedge" -ArgumentList "--new-tab", "`"$outputPath`""
             }
             catch {
