@@ -370,7 +370,19 @@ if ($configpath) {
         $config = Get-Content $configpath | ConvertFrom-Json
     }
     else {
-        Write-Error "Configuration file not found at $configpath. Continuing with default settings." 
+        Write-Error "Configuration file not found at $configpath. Checking for default config file." 
+    }
+} else {
+    # If no config path specified, check for config.json in the script directory
+    $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+    $defaultConfigPath = Join-Path $scriptDir "config.json"
+    if (Test-Path $defaultConfigPath) {
+        Write-Debug "No config path specified, but config.json found in script directory: $defaultConfigPath"
+        Write-Host "Using configuration file found in script directory: $defaultConfigPath" -ForegroundColor Green
+        $config = Get-Content $defaultConfigPath | ConvertFrom-Json
+    } else {
+        Write-Debug "No config file found. Using defaults."
+        Write-Host "No configuration file found. Using defaults." -ForegroundColor Yellow
     }
 }
 # Timezone is set to "America/Edmonton" by default
