@@ -199,6 +199,7 @@ function New-PlanHtml {
         size: letter $orientation;
     }
 </style>
+<link rel="stylesheet" type="text/css" href="print.css">
 </head>
 <body>
 <div class="header-row">
