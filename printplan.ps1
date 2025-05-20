@@ -160,7 +160,10 @@ function New-PlanHtml {
         [string]$PlanName,
         [string]$orientation = "landscape"
     )
-
+    Write-Debug "New-PlanHtml function called."
+    Write-Debug "PlanName: $PlanName"
+    Write-Debug "Orientation: $orientation"
+    Write-Debug "Teams: $($Teams | ConvertTo-Json -Depth 10)"
     # Load JSON
     $json = $JsonBody
 
@@ -194,10 +197,7 @@ function New-PlanHtml {
 <html>
 <head>
 <style>
-    @page {
-        margin: 0;
-        size: letter $orientation;
-    }
+    @page {margin: 0; size: letter $orientation;}
 </style>
 <link rel="stylesheet" type="text/css" href="print.css">
 </head>
@@ -691,7 +691,7 @@ if ($PrintPlan) {
         if ($Headless) {
             Write-Debug "Headless mode specified. Saving to PDF."
             Write-Host "Rendering plansheet in headless mode. Saving to PDF..." -ForegroundColor Green
-            $outputFileName = "$safeProfileName_$safePlanTitle_$(Get-Date -Format 'yyyyMMdd_HHmm').pdf"
+            $outputFileName = "$($safeProfileName)_$($safePlanTitle)_$(Get-Date -Format 'yyyyMMdd_HHmm').pdf"
             $outputPath = Join-Path -Path $outputdir -ChildPath $outputFileName
             Write-Debug "Output path: $outputPath"
             try {
@@ -707,7 +707,7 @@ if ($PrintPlan) {
         } else {
             Write-Debug "GUI mode specified. Saving to HTML."
             Write-Host "Rendering plansheet in GUI mode. Opening in browser..." -ForegroundColor Green
-            $outputFileName = "$safeProfileName-$safePlanTitle-$(Get-Date -Format 'yyyyMMdd_HHmm').html"
+            $outputFileName = "$($safeProfileName)_$($safePlanTitle)_$(Get-Date -Format 'yyyyMMdd_HHmm').html"
             $outputPath = Join-Path -Path $outputdir -ChildPath $outputFileName
             Write-Debug "Output path: $outputPath"
             try {
