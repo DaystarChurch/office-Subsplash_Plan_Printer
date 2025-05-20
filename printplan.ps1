@@ -738,3 +738,6 @@ if ($PrintPlan) {
         }
     }
 }
+#endregion
+Write-Debug "Script completed."
+Write-Host "Script completed." -ForegroundColor Green
