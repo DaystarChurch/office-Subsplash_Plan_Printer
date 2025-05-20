@@ -197,6 +197,19 @@ function New-PlanHtml {
 <html>
 <head>
 <style>
+    body {    body { font-family: Segoe UI, Arial, sans-serif; }
+    .header-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5em; }
+    .service-info { }
+    .service-title { font-size: 2em; font-weight: bold; margin-bottom: 0.2em; }
+    .service-subtitle { font-size: 1.1em; color: #555; }
+    .version-info { text-align: right; font-size: 0.95em; color: #444; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 4px; vertical-align: top; text-align: left; }
+    tr.song { background: #e6f7ff; }
+    tr.breaker { background: #f9f9f9; font-weight: bold; }
+    tr.start { background: #d9f7be; }
+    .duration { font-size: 0.9em; color: #888; display: block; }
+    /* Add more CSS as needed */
     @page {margin: 0; size: letter $orientation;}
 </style>
 <link rel="stylesheet" type="text/css" href="print.css">
