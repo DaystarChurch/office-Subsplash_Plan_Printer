@@ -2,14 +2,32 @@ body {
     font-family: Segoe UI, Arial, sans-serif;
 }
 
+@page {
+    margin: 0;
+    padding: 0;
+    size: letter landscape;
+}
+
+.document {
+    margin: auto;
+    width: 10.5in;
+    margin-top: 0.5in;
+    margin-bottom: 0.5in;
+}
+
 .header-row {
     display: flex;
+    flex-direction: row;
     justify-content: space-between;
     align-items: flex-start;
     margin-bottom: 1.5em;
 }
 
-.service-info {}
+.service-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
 
 .service-title {
     font-size: 2em;
@@ -22,7 +40,16 @@ body {
     color: #555;
 }
 
+.plansheet-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
 .version-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    margin-left: auto;
     text-align: right;
     font-size: 0.95em;
     color: #444;
