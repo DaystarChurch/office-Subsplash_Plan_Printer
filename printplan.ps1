@@ -366,7 +366,9 @@ function Set-FluroCreds {
 }
 #endregion
 #### Main Script Execution
-
+# Set working directory to the parent directory of the script
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+Set-Location $scriptDir
 #region Config Import and Variables
 # Import configuration file if specified
 Write-Debug "Config file handling"
