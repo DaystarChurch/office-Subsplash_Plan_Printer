@@ -719,7 +719,7 @@ if ($PrintPlan) {
         Write-Debug "Teams: $($Teams | ConvertTo-Json -Depth 10)"
         try {
             Write-Debug "Generating HTML for profile '$($profile.Name)'..."
-            $html = New-PlanHtml -servicedetails $serviceDetails -Teams $Teams -PlanName $profile.Name -orientation $config.orientation
+            $html = New-PlanHtml -servicedetails $serviceDetails -Teams $Teams -PlanName $profile.Name -orientation $profile.orientation
         }
         catch {
             Write-Error "Failed to generate HTML for profile '$($profile.Name)'. $_"
