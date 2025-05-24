@@ -214,9 +214,10 @@ function New-PlanHtml {
     tr.breaker { background: #f9f9f9; font-weight: bold; }
     tr.start { background: #d9f7be; }
     .duration { font-size: 0.9em; color: #888; display: block; }
-    @page {margin: 0; size: letter $orientation;}
 "@
     }
+    # Ensure @page is always present
+    $cssContent += "`n@page {margin: 0.25in; padding: 0; size: letter $orientation;}`n"
     # Build HTML
     $html = @"
 <html>

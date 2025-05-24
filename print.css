@@ -1,32 +1,43 @@
+/* Base styles */
 body {
-    font-family: Segoe UI, Arial, sans-serif;
+    font-family: Verdana, 'Segoe UI', sans-serif;
+    letter-spacing: 0.02em;
 }
 
-@page {
-    margin: 0;
-    padding: 0;
-    size: letter landscape;
+p {
+    margin: 5px;
 }
 
+ul {
+    margin-top: 0em;
+    margin-bottom: 0em;
+}
+
+/* Layout containers */
 .document {
     margin: auto;
-    width: 10.5in;
-    margin-top: 0.5in;
-    margin-bottom: 0.5in;
 }
 
 .header-row {
     display: flex;
     flex-direction: row;
+    flex-flow: nowrap;
     justify-content: space-between;
     align-items: flex-start;
     margin-bottom: 1.5em;
+    width: auto;
 }
 
+.table-container {
+    margin-top: 1em;
+    width: 100%;
+}
+
+/* Header sections */
 .service-info {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    flex-grow: 3;
 }
 
 .service-title {
@@ -43,21 +54,40 @@ body {
 .plansheet-info {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    flex-grow: 1;
 }
+
+.plan-name {
+    font-size: 1.5em;
+    font-weight: bold;
+    margin-bottom: 0.2em;
+}
+
 .version-info {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
+    flex-grow: 1;
     margin-left: auto;
     text-align: right;
     font-size: 0.95em;
     color: #444;
 }
 
+/* Table styles */
 table {
     border-collapse: collapse;
     width: 100%;
+}
+
+thead {
+    background: #b0b0b0;
+    display: table-header-group;
+}
+
+thead th {
+    font-weight: bold;
+    text-align: center;
+    padding: 4px;
 }
 
 th,
@@ -68,19 +98,50 @@ td {
     text-align: left;
 }
 
+tr {
+    break-inside: avoid;
+}
+
+/* Table row variants */
 tr.song {
-    background: #e6f7ff;
+    background: #f7f7f7;
 }
 
 tr.breaker {
-    background: #f9f9f9;
+    background: #e0e0e0;
     font-weight: bold;
+    border-left: #ccc 1px solid;
+    border-right: #ccc 1px solid;
+}
+
+tr.breaker td.col-detail {
+    text-align: center;
+    vertical-align: middle;
 }
 
 tr.start {
-    background: #d9f7be;
+    background: #a7a7a7;
+    font-weight: bold;
+    border: #444 2px solid;
 }
 
+tr.start td.col-detail {
+    text-align: center;
+    vertical-align: middle;
+}
+
+/* Table cell variants */
+td.col-detail {
+    text-align: left;
+    vertical-align: middle;
+}
+
+td.col-time {
+    text-align: center;
+    vertical-align: middle;
+}
+
+/* Utility classes */
 .duration {
     font-size: 0.9em;
     color: #888;
