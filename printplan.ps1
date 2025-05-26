@@ -227,6 +227,7 @@ $cssContent
 </style>
 </head>
 <body>
+<div class="document">
 <div class="header-row">
     <div class="service-info">
         <div class="service-title">$serviceTitle</div>
@@ -278,11 +279,11 @@ $cssContent
         # Add the title to the detail column, keeping HTML formatting
         $detailText = ""
         if ($row.title) {
-            $detailText = "<strong>$($row.title)</strong>"
+            $detailText = "<span class='detail-title'>$($row.title)</span>"
         }
         if ($row.detail) {
             if ($detailText) {
-                $detailText += "<br/>$($row.detail)"
+                $detailText += "<br/><span class='detail-text'>$($row.detail)</span>"
             }
             else {
                 $detailText = $row.detail
@@ -291,7 +292,7 @@ $cssContent
 
         $html += "        <tr class='$type'>`n"
         $html += "            <td class='col-time'>$timeStr$durationLine</td>`n"
-        $html += "            <td class='col-detail details'>$detailText</td>`n"
+        $html += "            <td class='col-detail'>$detailText</td>`n"
         foreach ($team in $Teams) {
             $cell = ""
             if ($row.notes -and $row.notes.$team) {
@@ -307,6 +308,7 @@ $cssContent
     $html += @"
     </tbody>
 </table>
+</div>
 </body>
 </html>
 "@
