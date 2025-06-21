@@ -152,10 +152,41 @@ function Get-FluroServiceById {
     }
 }
 
+function Get-FluroPlanDetails {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$AuthToken,
+        [Parameter(Mandatory = $true)]
+        [string]$PlanId
+    )
+
+    # Construct the API URL
+    $url = "https://api.fluro.io/content/get/$PlanId"
+
+    # Set up the headers for the API request
+    $headers = @{
+        "Authorization" = "Bearer $AuthToken"
+        "Content-Type"  = "application/json"
+        "Accept"        = "*/*"
+    }
+
+    try {
+        # Make the API request
+        Write-Debug "Sending request to Fluro API for plan details. URL: $url"
+        $response = Invoke-RestMethod -Uri $url -Method Get -Headers $headers
+        Write-Debug "Plan details retrieved successfully."
+        return $response
+    }
+    catch {
+        Write-Error "Failed to retrieve plan details for Plan ID $PlanId. $_"
+        return $null
+    }
+}
+
 function New-PlanHtml {
     param(
         [Parameter(Mandatory = $true)]
-        [object]$servicedetails,
+        [object]$plandetails,
         [object]$Teams,
         [string]$PlanName,
         [string]$orientation = "landscape",
@@ -169,27 +200,27 @@ function New-PlanHtml {
 
     # Get teams from JSON if not specified
     if (-not $Teams -or $Teams.Count -eq 0) {
-        $Teams = $servicedetails.plans[0].teams
+        $Teams = $plandetails.teams
     }
 
     # Prepare table headers
     $headers = @('Time', 'Detail') + $Teams
 
     # Get plan start time as DateTime (assume UTC in JSON)
-    $planStartUtc = [datetime]::Parse($servicedetails.plans[0].startDate)
+    $planStartUtc = [datetime]::Parse($plandetails.startDate)
     $localTZ = [System.TimeZoneInfo]::Local
 
     # Extract service title, date/time, and versioning info
-    $plan = $servicedetails.plans[0]
-    $serviceTitle = $plan.title
+    $plan = $plandetails
+    $serviceTitle = $plan.event.title
     $serviceDateTimeUtc = [datetime]::Parse($plan.startDate)
     $serviceDateTimeLocal = [System.TimeZoneInfo]::ConvertTimeFromUtc($serviceDateTimeUtc, [System.TimeZoneInfo]::FindSystemTimeZoneById("Mountain Standard Time"))
     $serviceDateTimeStr = $serviceDateTimeLocal.ToString("dddd, MMMM d, yyyy 'at' h:mm tt")
 
     # Versioning data
-    $lastUpdatedUT = [datetime]::Parse($servicedetails.updated)
+    $lastUpdatedUT = [datetime]::Parse($plan.updated)
     $lastUpdatedLocal = [System.TimeZoneInfo]::ConvertTimeFromUtc($lastUpdatedUT, $localTZ).ToString("yyyy-MM-dd hh:mm:ss")
-    $lastUpdatedBy = $servicedetails.updatedBy
+    $lastUpdatedBy = $plan.updatedBy
     $printTime = (Get-Date).ToString("yyyy-MM-dd hh:mm:ss")
 
     # Load CSS from file
@@ -259,7 +290,7 @@ $cssContent
     $runningTime = 0
 
     # Loop through each schedule entry
-    foreach ($row in $servicedetails.plans[0].schedules) {
+    foreach ($row in $plan.schedules) {
         $type = $row.type
         if (-not $type) { $type = "normal" }
         $duration = $row.duration
@@ -574,7 +605,6 @@ if ($ListServices -or -not $serviceid) {
         exit 0
     }
     Write-Debug "Services found: $($services.Count)"
-    # Filter out services with no plans
     # Filter out services that do not have plans by checking each service with Get-FluroServiceById
     Write-Debug "Filtering services to only those with plans."
     $servicesWithPlans = @()
@@ -590,7 +620,7 @@ if ($ListServices -or -not $serviceid) {
         Write-Error "No services with plans found."
         exit 1
     }
-    # Only search if $serviceid was not provided
+    # If no service ID is specified, use the ID from the found service, or prompt the user to select a service if multiple are found
     if (-not $serviceid) {
         if ($services.Count -eq 1) {
             # Only one service found, use its ID
@@ -714,6 +744,13 @@ if ($PrintPlan) {
         Write-Error "No service details or plans found. Cannot render plansheet." 
         exit 1
     }
+    #Get complete plan details for the first plan
+    Write-Host "Getting complete plan details for Plan ID: $($serviceDetails.plans[0]._id)" -ForegroundColor Green
+    $planDetails = Get-FluroPlanDetails -AuthToken $token -PlanId $serviceDetails.plans[0]._id
+    if (-not $planDetails) {
+        Write-Error "Failed to retrieve plan details for Plan ID $($serviceDetails.plans[0]._id). Exiting."
+        exit 1
+    }
     Write-Debug "Rendering plansheet for service ID: $serviceid, looping though profiles."
     foreach ($profile in $profilelist) {
         if ($profile.Teams.Count -eq 0) {
@@ -722,12 +759,12 @@ if ($PrintPlan) {
         }
         $Teams = $profile.Teams
         $safeProfileName = ($profile.Name -replace '[^a-zA-Z0-9\-]', '-').Trim('-') -replace '-+', '-'
-        $safePlanTitle = ($serviceDetails.plans[0].title -replace '[^a-zA-Z0-9\-]', '-').Trim('-') -replace '-+', '-'
+        $safePlanTitle = ($planDetails.title -replace '[^a-zA-Z0-9\-]', '-').Trim('-') -replace '-+', '-'
         Write-Host "Rendering plansheet for profile '$($profile.Name)' with teams: $($Teams -join ', ')" -ForegroundColor Green
         Write-Debug "Teams: $($Teams | ConvertTo-Json -Depth 10)"
         try {
             Write-Debug "Generating HTML for profile '$($profile.Name)'..."
-            $html = New-PlanHtml -servicedetails $serviceDetails -Teams $Teams -PlanName $profile.Name -orientation $profile.orientation
+            $html = New-PlanHtml -plandetails $planDetails -Teams $Teams -PlanName $profile.Name -orientation $profile.orientation
         }
         catch {
             Write-Error "Failed to generate HTML for profile '$($profile.Name)'. $_"
