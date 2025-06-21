@@ -573,7 +573,23 @@ if ($ListServices -or -not $serviceid) {
         Write-Debug "Exiting after listing services."
         exit 0
     }
-
+    Write-Debug "Services found: $($services.Count)"
+    # Filter out services with no plans
+    # Filter out services that do not have plans by checking each service with Get-FluroServiceById
+    Write-Debug "Filtering services to only those with plans."
+    $servicesWithPlans = @()
+    foreach ($svc in $services) {
+        $svcDetails = Get-FluroServiceById -AuthToken $token -ServiceId $svc._id
+        if ($svcDetails -and $svcDetails.plans -and $svcDetails.plans.Count -gt 0) {
+            $servicesWithPlans += $svc
+        }
+    }
+    $services = $servicesWithPlans
+    Write-Debug "Filtered services with plans: $($services.Count)"
+    if (-not $services -or $services.Count -eq 0) {
+        Write-Error "No services with plans found."
+        exit 1
+    }
     # Only search if $serviceid was not provided
     if (-not $serviceid) {
         if ($services.Count -eq 1) {
