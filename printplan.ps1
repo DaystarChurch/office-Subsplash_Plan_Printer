@@ -527,16 +527,20 @@ else {
 }
 #endregion
 
-#region List Services
-if ($ListServices) {
-    Write-Debug "ListServices parameter specified. Listing services."
+#region List or Search Services
+# If -ListServices is specified, list all services for the next Sunday
+# If -serviceid is not specified, search for services for the next Sunday
+Write-Debug "List or Search Services"
+if ($ListServices -or -not $serviceid) {
+    Write-Debug "ListServices or service search triggered."
     # Set up the date range for the search (next Sunday to end of that Sunday)
     $now = Get-Date
-    $localTimezone = "America/Edmonton"
+    $localTimezone = $timezone
     $daysUntilSunday = (7 - [int]$now.DayOfWeek) % 7
     $nextSunday = $now.Date.AddDays($daysUntilSunday)
     $endDate = $nextSunday.AddDays(1).AddMilliseconds(-1)
-
+    Write-Debug "Next Sunday: $nextSunday, End Date: $endDate"
+    Write-Host "Searching for services from $nextSunday to $endDate in timezone $localTimezone." -ForegroundColor Green
     # Create the filter body for the API request
     Write-Debug "Creating filter body for API request."
     $filterBody = New-FluroServiceFilter -StartDate $nextSunday -EndDate $endDate -Timezone $localTimezone
@@ -546,80 +550,64 @@ if ($ListServices) {
     $services = Get-FluroServices -AuthToken $token -FilterBody $filterBody
 
     if (-not $services -or $services.Count -eq 0) {
-        Write-Host "No services found." -ForegroundColor Yellow
-        exit 0
-    }
-    Write-Debug "Services found: $($services.Count)"
-    Write-Debug "Services: $($services | ConvertTo-Json -Depth 10)"
-    Write-Debug "Displaying services in grid view."
-    $localTZ = [System.TimeZoneInfo]::Local
-    $services | Select-Object `
-        @{Name="Title";Expression={$_.title}},
-        @{Name="Start (Local)";Expression={ [System.TimeZoneInfo]::ConvertTimeFromUtc([datetime]$_.startDate, $localTZ).ToString("yyyy-MM-dd HH:mm") }},
-        @{Name="End (Local)";Expression={ [System.TimeZoneInfo]::ConvertTimeFromUtc([datetime]$_.endDate, $localTZ).ToString("yyyy-MM-dd HH:mm") }},
-        @{Name="_id";Expression={$_. _id}} |
-        Format-Table -AutoSize
-    Write-Debug "Exiting after listing services."
-    exit 0
-}
-#endregion
-
-#region Search for Services 
-Write-Debug "Search for Services"
-if (-not $serviceid) {
-    Write-Debug "No service ID provided. Searching for services."
-    # Set up the date range for the search (next Sunday to end of that Sunday)
-    $now = Get-Date
-    $localTimezone = $timezone
-    $daysUntilSunday = (7 - [int]$now.DayOfWeek) % 7
-    $nextSunday = $now.Date.AddDays($daysUntilSunday)
-    $endDate = $nextSunday.AddDays(1).AddMilliseconds(-1)
-
-    Write-Debug "Create the filter body for the API request"
-    $filterBody = New-FluroServiceFilter -StartDate $nextSunday -EndDate $endDate -Timezone $localTimezone
-    Write-Host "Getting list of services from Fluro API..." -ForegroundColor Green
-    # Get the services from the API
-    Write-Debug "Getting services from Fluro API..."
-    $services = Get-FluroServices -AuthToken $token -FilterBody $filterBody
-
-    # Check if services were retrieved
-    if (-not $services -or $services.Count -eq 0) {
-        Write-Error "No services found."
-        exit 1
-    }
-
-    if ($services.Count -eq 1) {
-        # Only one service found, use its ID
-        $serviceid = $services[0]._id
-        Write-Host "Service ID: $serviceid" -ForegroundColor Green
-        Write-Host "Service Title: $($services[0].title)" -ForegroundColor Green
-    }
-    elseif ($services.Count -gt 1) {
-        if ($Headless) {
-            Write-Error "Multiple services found. Please run without -headless to select a service." 
+        if ($ListServices) {
+            Write-Host "No services found." -ForegroundColor Yellow
+            exit 0
+        } else {
+            Write-Error "No services found."
             exit 1
         }
-        Write-Debug "Multiple services found. Displaying in grid view."
-        Write-Host "Multiple services found. Please select one:" -ForegroundColor Yellow
-        # Display the services in a grid view for selection
+    }
+
+    if ($ListServices) {
+        Write-Debug "Services found: $($services.Count)"
+        Write-Debug "Services: $($services | ConvertTo-Json -Depth 10)"
+        Write-Debug "Displaying services in grid view."
         $localTZ = [System.TimeZoneInfo]::Local
-        $servicesDisplay = $services | Select-Object `
+        $services | Select-Object `
             @{Name="Title";Expression={$_.title}},
             @{Name="Start (Local)";Expression={ [System.TimeZoneInfo]::ConvertTimeFromUtc([datetime]$_.startDate, $localTZ).ToString("yyyy-MM-dd HH:mm") }},
             @{Name="End (Local)";Expression={ [System.TimeZoneInfo]::ConvertTimeFromUtc([datetime]$_.endDate, $localTZ).ToString("yyyy-MM-dd HH:mm") }},
-            @{Name="_id";Expression={$_. _id}}
-
-        $selectedService = $servicesDisplay | Out-GridView -Title "Select a Service" -PassThru
-        if (-not $selectedService) {
-            Write-Error "No service selected. Exiting."
-            exit 1
-        }
-        $serviceid = $selectedService._id
-        Write-Host "Selected Service ID: $serviceid" -ForegroundColor Green
-        Write-Host "Selected Service Title: $($selectedService.title)" -ForegroundColor Green
+            @{Name="_id";Expression={$_. _id}} |
+            Format-Table -AutoSize
+        Write-Debug "Exiting after listing services."
+        exit 0
     }
-}
-else {
+
+    # Only search if $serviceid was not provided
+    if (-not $serviceid) {
+        if ($services.Count -eq 1) {
+            # Only one service found, use its ID
+            $serviceid = $services[0]._id
+            Write-Host "Service ID: $serviceid" -ForegroundColor Green
+            Write-Host "Service Title: $($services[0].title)" -ForegroundColor Green
+        }
+        elseif ($services.Count -gt 1) {
+            if ($Headless) {
+                Write-Error "Multiple services found. Please run without -headless to select a service."
+                exit 1
+            }
+            Write-Debug "Multiple services found. Displaying in grid view."
+            Write-Host "Multiple services found. Please select one:" -ForegroundColor Yellow
+            # Display the services in a grid view for selection
+            $localTZ = [System.TimeZoneInfo]::Local
+            $servicesDisplay = $services | Select-Object `
+                @{Name="Title";Expression={$_.title}},
+                @{Name="Start (Local)";Expression={ [System.TimeZoneInfo]::ConvertTimeFromUtc([datetime]$_.startDate, $localTZ).ToString("yyyy-MM-dd HH:mm") }},
+                @{Name="End (Local)";Expression={ [System.TimeZoneInfo]::ConvertTimeFromUtc([datetime]$_.endDate, $localTZ).ToString("yyyy-MM-dd HH:mm") }},
+                @{Name="_id";Expression={$_. _id}}
+
+            $selectedService = $servicesDisplay | Out-GridView -Title "Select a Service" -PassThru
+            if (-not $selectedService) {
+                Write-Error "No service selected. Exiting."
+                exit 1
+            }
+            $serviceid = $selectedService._id
+            Write-Host "Selected Service ID: $serviceid" -ForegroundColor Green
+            Write-Host "Selected Service Title: $($selectedService.title)" -ForegroundColor Green
+        }
+    }
+} else {
     Write-Debug "Service ID provided: $serviceid"
     Write-Host "Service ID provided: $serviceid. Skipping service search." -ForegroundColor Green
 }
