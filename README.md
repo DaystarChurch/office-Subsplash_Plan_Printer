@@ -18,6 +18,16 @@ This PowerShell script (printplan.ps1) automates the retrieval, formatting, and 
 
 ---
 
+## Prerequisites
+
+- **PowerShell 7+**: Ensure you have PowerShell 7 or later installed.
+- **Microsoft Edge**: Required for PDF generation and HTML preview.
+- **Internet Access**: The script needs to access the Subsplash Management API.
+- **Credentials**: You must have valid Subsplash Management credentials stored securely.
+- **JSON Config File**: Optional, for advanced configuration (see below).
+
+---
+
 ## Usage
 
 ### Parameters
@@ -127,14 +137,6 @@ You can provide a JSON config file to customize script behavior. Example:
 
 - The script provides clear error messages for missing credentials, failed authentication, missing config, or API errors.
 - In headless mode, the script will exit with an error if user interaction is required.
-
----
-
-## Dependencies
-
-- **PowerShell 7+**
-- **Microsoft Edge** (for PDF generation and HTML preview)
-- **Internet access** (to reach the Subsplash Management API)
 
 ---
 
