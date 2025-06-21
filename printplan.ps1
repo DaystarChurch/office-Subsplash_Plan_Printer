@@ -212,7 +212,7 @@ function New-PlanHtml {
 
     # Extract service title, date/time, and versioning info
     $plan = $plandetails
-    $serviceTitle = $plan.title
+    $serviceTitle = $plan.event.title
     $serviceDateTimeUtc = [datetime]::Parse($plan.startDate)
     $serviceDateTimeLocal = [System.TimeZoneInfo]::ConvertTimeFromUtc($serviceDateTimeUtc, [System.TimeZoneInfo]::FindSystemTimeZoneById("Mountain Standard Time"))
     $serviceDateTimeStr = $serviceDateTimeLocal.ToString("dddd, MMMM d, yyyy 'at' h:mm tt")
