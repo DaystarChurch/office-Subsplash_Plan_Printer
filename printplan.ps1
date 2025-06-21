@@ -331,6 +331,7 @@ function Convert-PlanHtmlToPdf {
 
     try {
         # Run msedge to print to PDF
+        Write-Host "Ignore messages in gray below." -ForegroundColor Yellow
         $process = Start-Process msedge -Wait -PassThru -ArgumentList "--headless", "--run-all-compositor-stages-before-draw", "--print-to-pdf=""$OutPath""", "--disable-gpu", "`"$tempHtml`""
         if ($process.ExitCode -ne 0) {
             Write-Error "msedge exited with code $($process.ExitCode). PDF may not have been created."
