@@ -733,14 +733,14 @@ Write-Debug "Plansheet Rendering"
 Write-Debug "Getting list of plansheet profiles..."
 Write-Host "Getting list of plansheet profiles..." -ForegroundColor Green
 if ($config -and $config.planprofiles) {
-    $profilelist = $config.planprofiles
+    $planprofilelist = $config.planprofiles
     Write-Host "Loaded plan profiles from config." -ForegroundColor Green
-    Write-Debug "Plan profiles: $($profilelist | ConvertTo-Json -Depth 10)"
+    Write-Debug "Plan profiles: $($planprofilelist | ConvertTo-Json -Depth 10)"
 } else {
     # Default: single profile with all teams from the plan
     Write-Debug "No plan profiles found in config. Using default profile with all teams."
     $allTeams = $serviceDetails.plans[0].teams
-    $profilelist = @(@{ Name = "All Teams"; Teams = $allTeams })
+    $planprofilelist = @(@{ Name = "All Teams"; Teams = $allTeams })
     Write-Host "No plan profiles found in config. Using default profile with all teams." -ForegroundColor Yellow
 }
 if ($PrintPlan) {
@@ -757,22 +757,22 @@ if ($PrintPlan) {
         exit 1
     }
     Write-Debug "Rendering plansheet for service ID: $serviceid, looping though profiles."
-    foreach ($profile in $profilelist) {
-        if ($profile.Teams.Count -eq 0) {
-            Write-Host "No teams found in profile '$($profile.Name)'. Skipping..." -ForegroundColor Red
+    foreach ($planprofile in $profilelist) {
+        if ($planprofile.Teams.Count -eq 0) {
+            Write-Host "No teams found in profile '$($planprofile.Name)'. Skipping..." -ForegroundColor Red
             continue
         }
-        $Teams = $profile.Teams
-        $safeProfileName = ($profile.Name -replace '[^a-zA-Z0-9\-]', '-').Trim('-') -replace '-+', '-'
+        $Teams = $planprofile.Teams
+        $safeProfileName = ($planprofile.Name -replace '[^a-zA-Z0-9\-]', '-').Trim('-') -replace '-+', '-'
         $safePlanTitle = ($planDetails.title -replace '[^a-zA-Z0-9\-]', '-').Trim('-') -replace '-+', '-'
-        Write-Host "Rendering plansheet for profile '$($profile.Name)' with teams: $($Teams -join ', ')" -ForegroundColor Green
+        Write-Host "Rendering plansheet for profile '$($planprofile.Name)' with teams: $($Teams -join ', ')" -ForegroundColor Green
         Write-Debug "Teams: $($Teams | ConvertTo-Json -Depth 10)"
         try {
-            Write-Debug "Generating HTML for profile '$($profile.Name)'..."
-            $html = New-PlanHtml -plandetails $planDetails -Teams $Teams -PlanName $profile.Name -orientation $profile.orientation
+            Write-Debug "Generating HTML for profile '$($planprofile.Name)'..."
+            $html = New-PlanHtml -plandetails $planDetails -Teams $Teams -PlanName $planprofile.Name -orientation $planprofile.orientation
         }
         catch {
-            Write-Error "Failed to generate HTML for profile '$($profile.Name)'. $_"
+            Write-Error "Failed to generate HTML for profile '$($planprofile.Name)'. $_"
             continue
         }
         #write-Debug "$html"
