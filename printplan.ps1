@@ -757,7 +757,7 @@ if ($PrintPlan) {
         exit 1
     }
     Write-Debug "Rendering plansheet for service ID: $serviceid, looping though profiles."
-    foreach ($planprofile in $profilelist) {
+    foreach ($planprofile in $planprofilelist) {
         if ($planprofile.Teams.Count -eq 0) {
             Write-Host "No teams found in profile '$($planprofile.Name)'. Skipping..." -ForegroundColor Red
             continue
