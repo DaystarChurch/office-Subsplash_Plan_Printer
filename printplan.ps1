@@ -354,6 +354,11 @@ function Convert-PlanHtmlToPdf {
         [Parameter(Mandatory = $true)]
         [string]$OutPath
     )
+    # Check for WeasyPrint exe in script directory
+    if (-not (Get-Item -path "weasyprint.exe" -ErrorAction SilentlyContinue)) {
+        Write-Error "WeasyPrint executable not found in script directory. Please download WeasyPrint and place weasyprint.exe in the script directory."
+        throw "WeasyPrint executable not found."
+    }
 
     # Create a temporary HTML file
     $tempHtml = [System.IO.Path]::GetTempFileName() -replace '\.tmp$', '.html'
@@ -361,15 +366,15 @@ function Convert-PlanHtmlToPdf {
     Write-Debug "Temporary HTML file created at: $tempHtml"
 
     try {
-        # Run msedge to print to PDF
-        Write-Host "Ignore messages in gray below." -ForegroundColor Yellow
-        $process = Start-Process msedge -Wait -PassThru -ArgumentList "--headless", "--run-all-compositor-stages-before-draw", "--print-to-pdf=""$OutPath""", "--disable-gpu", "`"$tempHtml`""
+        # Run WeasyPrint to convert to PDF
+        $weasyPrintPath = Join-Path $scriptDir "weasyprint.exe"
+        $process = Start-Process -FilePath $weasyPrintPath -ArgumentList "`"$tempHtml`"", "`"$OutPath`"" -Wait -PassThru
         if ($process.ExitCode -ne 0) {
-            Write-Error "msedge exited with code $($process.ExitCode). PDF may not have been created."
+            Write-Error "WeasyPrint exited with code $($process.ExitCode). PDF may not have been created."
         }
     }
     catch {
-        Write-Error "Failed to run msedge for PDF conversion: $_"
+        Write-Error "Failed to run WeasyPrint for PDF conversion: $_"
         throw
     }
     finally {
