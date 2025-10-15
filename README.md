@@ -21,7 +21,7 @@ This PowerShell script (printplan.ps1) automates the retrieval, formatting, and 
 ## Prerequisites
 
 - **PowerShell 7+**: Ensure you have PowerShell 7 or later installed.
-- **Microsoft Edge**: Required for PDF generation and HTML preview.
+- **WeasyPrint**: Required for PDF generation and HTML preview. [Download from GitHub](https://github.com/Kozea/WeasyPrint/releases)
 - **Internet Access**: The script needs to access the Subsplash Management API.
 - **Credentials**: You must have valid Subsplash Management credentials stored securely.
 - **JSON Config File**: Optional, for advanced configuration (see below).
@@ -151,6 +151,7 @@ You can provide a JSON config file to customize script behavior. Example:
 
 - **Authentication errors**: Re-run with `-LoginSubsplash` to reset credentials.
 - **No services found**: Check your date range, credentials, or API access.
-- **PDF not generated**: Ensure Edge is installed and accessible via `msedge` command.
+- **PDF not generated**: Ensure WeasyPrint is installed and accessible via `weasyprint` command.
+- **WeasyPrint issues**: Ensure `weasyprint.exe` is in the script directory and properly installed.
 
 ---
