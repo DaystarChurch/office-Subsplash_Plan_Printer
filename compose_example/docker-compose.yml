@@ -1,0 +1,8 @@
+version: "3.9"
+services:
+  planprinter:
+    image: daystar/planprinter:latest
+    env_file:
+      - .env
+    volumes:
+      - ./data:/data   # profiles.json & print.css & output PDFs live here
