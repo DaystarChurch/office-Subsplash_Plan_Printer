@@ -610,25 +610,8 @@ if (-not $profiles -or $profiles.Count -eq 0) {
 
 Write-Debug "Resolved $($profiles.Count) plansheet profiles."
 #endregion
-
-#region Render Plansheet HTML
-# Get list of plansheet profiles
-Write-Debug "Plansheet Rendering"
-Write-Debug "Getting list of plansheet profiles..."
-Write-Host "Getting list of plansheet profiles..." -ForegroundColor Green
-if ($config -and $config.planprofiles) {
-    $planprofilelist = $config.planprofiles
-    Write-Host "Loaded plan profiles from config." -ForegroundColor Green
-    Write-Debug "Plan profiles: $($planprofilelist | ConvertTo-Json -Depth 10)"
-} else {
-    # Default: single profile with all teams from the plan
-    Write-Debug "No plan profiles found in config. Using default profile with all teams."
-    $allTeams = $serviceDetails.plans[0].teams
-    $planprofilelist = @(@{ Name = "All Teams"; Teams = $allTeams })
-    Write-Host "No plan profiles found in config. Using default profile with all teams." -ForegroundColor Yellow
-}
-if ($PrintPlan) {
-    Write-Debug "PrintPlan parameter specified. Rendering plansheet."
+#region Render Plansheet(s)
+Write-Debug "Rendering plansheet."
     if (-not $serviceDetails -or -not $serviceDetails.plans -or $serviceDetails.plans.Count -eq 0) {
         Write-Error "No service details or plans found. Cannot render plansheet." 
         exit 1
@@ -641,8 +624,8 @@ if ($PrintPlan) {
         exit 1
     }
     Write-Debug "Rendering plansheet for service ID: $serviceid, looping though profiles."
-    foreach ($planprofile in $planprofilelist) {
-        if ($planprofile.Teams.Count -eq 0) {
+foreach ($planprofile in $profiles) {
+    if (-not $planprofile.Teams -or $planprofile.Teams.Count -eq 0) {
             Write-Host "No teams found in profile '$($planprofile.Name)'. Skipping..." -ForegroundColor Red
             continue
         }
@@ -659,47 +642,30 @@ if ($PrintPlan) {
             Write-Error "Failed to generate HTML for profile '$($planprofile.Name)'. $_"
             continue
         }
-        #write-Debug "$html"
-        if ($Headless) {
-            Write-Debug "Headless mode specified. Saving to PDF."
-            Write-Host "Rendering plansheet in headless mode. Saving to PDF..." -ForegroundColor Green
-            $outputFileName = "$($safeProfileName)_$($safePlanTitle)_$(Get-Date -Format 'yyyyMMdd_HHmm').pdf"
-            $outputPath = Join-Path -Path $outputdir -ChildPath $outputFileName
-            Write-Debug "Output path: $outputPath"
+
+    $timestamp = Get-Date -Format 'yyyyMMdd_HHmm'
+    $outputBaseName = "$($safeProfileName)_$($safePlanTitle)_$timestamp"
+    $outputPdfPath = Join-Path -Path $OUTPUT_DIR -ChildPath ($outputBaseName + ".pdf")
+    $outputHtmlPath = Join-Path -Path $OUTPUT_DIR -ChildPath ($outputBaseName + ".html")
+
+    # Always save PDF
             try {
                 Write-Debug "Converting HTML to PDF..."
-                Convert-PlanHtmlToPdf -PlanHtml $html -OutPath $outputPath
-                Write-Host "Plansheet saved to: $outputPath" -ForegroundColor Magenta
+        Convert-PlanHtmlToPdf -PlanHtml $html -OutPath $outputPdfPath
+        Write-Host "Plansheet PDF saved to: $outputPdfPath" -ForegroundColor Magenta
             }
             catch {
-                Write-Debug "Failed to convert HTML to PDF. $_"
-                Write-Error "Failed to convert HTML to PDF or save to $outputPath. $_"
-                continue
-            }
-        } else {
-            Write-Debug "GUI mode specified. Saving to HTML."
-            Write-Host "Rendering plansheet in GUI mode. Opening in browser..." -ForegroundColor Green
-            $outputFileName = "$($safeProfileName)_$($safePlanTitle)_$(Get-Date -Format 'yyyyMMdd_HHmm').html"
-            $outputPath = Join-Path -Path $outputdir -ChildPath $outputFileName
-            Write-Debug "Output path: $outputPath"
+        Write-Error "Failed to convert HTML to PDF or save to $outputPdfPath. $_"
+    }
+    # Save HTML if requested
+    if ($KEEP_HTML -eq 'true') {
             try {
                 Write-Debug "Writing HTML to file..."
-                Set-Content -Path $outputPath -Value $html -Encoding UTF8
+                Set-Content -Path $outputHtmlPath -Value $html -Encoding UTF8
+                Write-Host "Plansheet HTML saved to: $outputHtmlPath" -ForegroundColor Magenta        
             }
             catch {
-                Write-Debug "Failed to write HTML to file. $_"
-                Write-Error "Failed to write HTML to $outputPath. $_"
-                continue
-            }
-            Write-Host "Plansheet saved to: $outputPath" -ForegroundColor Magenta
-            # Open the HTML file in MSEdge
-            try {
-                Write-Debug "Opening HTML file in browser..."
-                Start-Process "msedge" -ArgumentList "--new-tab", "`"$outputPath`""
-            }
-            catch {
-                Write-Error "Failed to open $outputPath in browser. $_"
-            }
+                Write-Error "Failed to write HTML to $outputHtmlPath. $_"
         }
     }
 }
