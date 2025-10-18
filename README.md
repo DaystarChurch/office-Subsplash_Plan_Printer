@@ -29,7 +29,25 @@ This PowerShell script (`printplan.ps1`) automates the retrieval, formatting, an
 
 ## Usage
 
-### Configuration
+### Docker Compose File
+
+A sample `docker-compose.yml` is provided below. Adjust environment variables and volume mounts as needed.
+
+```yaml
+version: "3.9"
+services:
+  planprinter:
+    image: timothiasthegreat/subsplash_plan_printer
+    env_file: [.env]
+    volumes:
+      - ./data:/data
+```
+
+### .env File
+
+Create a `.env` file in the same directory as your `docker-compose.yml` to supply configuration variables.
+
+#### Environment Variables
 
 All configuration is supplied via environment variables or a `.env` file. The most common options are:
 
@@ -50,7 +68,7 @@ All configuration is supplied via environment variables or a `.env` file. The mo
 
 ---
 
-### Example `.env` file
+#### Example `.env` file
 
 ```dotenv
 FLURO_USERNAME=you@example.com
@@ -65,7 +83,7 @@ KEEP_HTML=false
 
 ---
 
-### Example `profiles.json`
+#### Example `profiles.json`
 
 ```json
 [
@@ -77,28 +95,15 @@ KEEP_HTML=false
 
 ---
 
-### Docker Compose Example
-
-```yaml
-version: "3.9"
-services:
-  planprinter:
-    image: timothiasthegreat/subsplash_plan_printer
-    env_file: [.env]
-    volumes:
-      - ./data:/data
-    working_dir: /app
-    entrypoint: ["pwsh","-File","/app/printplan.ps1"]
-```
-
----
-
 ### Running the Container
 
 ```bash
 docker compose up --abort-on-container-exit
-# Or with docker run:
-docker run --rm --env-file .env -v "$PWD/data:/data" -w /app daystar/planprinter
+```
+Or directly with Docker:
+
+```bash
+docker run --rm --env-file .env -v "$PWD/data:/data" -w /app timothiasthegreat/subsplash_plan_printer:latest
 ```
 
 ---
