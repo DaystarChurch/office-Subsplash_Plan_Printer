@@ -573,22 +573,42 @@ Write-Debug "Get Service Details"
 
 #endregion
 
-#region List Teams
-if ($ListTeams) {
-    Write-Debug "ListTeams parameter specified. Listing teams."
-    if (-not $serviceDetails -or -not $serviceDetails.plans -or $serviceDetails.plans.Count -eq 0) {
-        Write-Error "No service details or plans found. Cannot list teams."
-        exit 1
+#region Build Profile List
+Write-Debug "Plansheet Rendering"
+Write-Debug "Building list of plansheet profiles..."
+Write-Host "Building list of plansheet profiles..." -ForegroundColor Green
+# Determine profiles from env vars or file
+# Initialize profiles array
+$profiles = @()
+
+if ($PROFILES_ENV) {
+    # Highest precedence: inline JSON in env var
+    try { $profiles = $PROFILES_ENV | ConvertFrom-Json -Depth 50 }
+    catch {
+        Write-Error "PLAN_PROFILES env var is not valid JSON. $_"
+        exit 2
     }
-    $teams = $serviceDetails.plans[0].teams
-    if (-not $teams -or $teams.Count -eq 0) {
-        Write-Host "No teams found in the plan." -ForegroundColor Yellow
-    } else {
-        Write-Host "Teams in this plan titled '$($serviceDetails.plans[0].title)':"
-        $teams | ForEach-Object { Write-Host "- $_" -ForegroundColor White}
-    }
-    exit 0
 }
+elseif ($PROFILES_FILE) {
+    # Second: JSON file path
+    try { $profiles = Get-JsonFile -Path $PROFILES_FILE }
+    catch {
+        Write-Error "Failed to load PLAN_PROFILES_FILE. $_"
+        exit 2
+    }
+}
+else {
+    # Fallback: one profile with all plan teams
+    $profiles = @(@{ Name = "All Teams"; Teams = $serviceDetails.plans[0].teams; orientation = "landscape" })
+}
+
+# basic validation
+if (-not $profiles -or $profiles.Count -eq 0) {
+    Write-Error "No plan profiles resolved. Provide PLAN_PROFILES, PLAN_PROFILES_FILE, TEAMS, or rely on plan teams."
+    exit 2
+}
+
+Write-Debug "Resolved $($profiles.Count) plansheet profiles."
 #endregion
 
 #region Render Plansheet HTML
