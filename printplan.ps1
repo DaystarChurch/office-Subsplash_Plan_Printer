@@ -1,25 +1,46 @@
 [CmdletBinding()]
-param (
-    [Parameter()]
-    [switch]$LoginSubsplash,
-    [Parameter()]
-    [switch]$ListTeams,
-    [Parameter()]
-    [switch]$ListServices, 
-    [Parameter()]
-    [switch]$PrintSongs,
-    [Parameter()]
-    [switch]$PrintPlan,
-    [Parameter()]
-    [switch]$Headless,
-    [Parameter()]
-    [string]$serviceid,
-    [Parameter()]
-    [string[]]$Teams,
-    [Parameter()]
-    [string]$configpath
-)
+param()  # No parameters; all config comes from environment
+
 #region Functions
+# ---------------------------
+# Helpers / configuration load
+# ---------------------------
+function Get-EnvOrDefault {
+    param([string]$Name, [object]$Default = $null)
+    $value = (Get-Item -Path "Env:$Name" -ErrorAction SilentlyContinue).Value
+    if ($value -and $value.Trim().Length -gt 0) { return $value }
+    return $Default
+}
+
+function Get-JsonFromEnv {
+    param([string]$Name)
+    $envVar = (Get-Item -Path "Env:$Name" -ErrorAction SilentlyContinue).Value
+    if (-not $envVar) { return $null }
+    try { return ($envVar | ConvertFrom-Json -Depth 50) }
+    catch {
+        Write-Error "Environment variable '$Name' is not valid JSON. $_"
+        exit 2
+    }
+}
+
+function Get-JsonFile {
+    param([string]$Path)
+    if (-not $Path) { return $null }
+    if (-not (Test-Path -Path $Path)) {
+        Write-Error "PLAN_PROFILES_FILE points to '$Path' but the file does not exist."
+        exit 2
+    }
+    try {
+        $raw = Get-Content -Path $Path -Raw -Encoding UTF8
+        return ($raw | ConvertFrom-Json -Depth 50)
+    } catch {
+        Write-Error "Failed to parse JSON from '$Path'. $_"
+        exit 2
+    }
+}
+# ---------------------------
+# Fluro API functions
+# ---------------------------
 function Get-FluroAuthToken {
     param(
         [Parameter(Mandatory = $true)]
@@ -382,165 +403,69 @@ function Convert-PlanHtmlToPdf {
         try {
             Remove-Item $tempHtml -ErrorAction SilentlyContinue
         }
-        catch {
-            Write-Warning "Failed to remove temporary HTML file: $tempHtml"
-        }
-    }
-}
-
-function Set-FluroCreds {
-
-    $flurocredinput = Get-Credential -Message "Enter your Subsplash credentials"
-    $flurocreds = New-Object System.Management.Automation.PSCredential ($flurocredinput.UserName, $flurocredinput.Password)
-    try {
-        Export-Clixml -Path "fluro.xml" -InputObject $flurocreds -ErrorAction Stop
-        Write-Host "Fluro credentials saved successfully."
-        return $flurocreds
-    }
-    catch {
-        Write-Error "Failed to save Fluro credentials. Please check file permissions."
-        Write-Host "Credentials not saved. Script will not run without saved credentials."
-        Write-Host "Please run the script with -LoginSubsplash to set up credentials after confirming you can write to the directory."
-        return $null
-    }
 }
 #endregion
+
+# ---------------------------
+#region Load Environment Variables
+# ---------------------------
+$TIMEZONE    = (Get-EnvOrDefault 'TIMEZONE' 'America/Edmonton')   # IANA
+$OUTPUT_DIR  = (Get-EnvOrDefault 'OUTPUT_DIR' '/data')
+$EMPTY_OUTPUT_DIR = (Get-EnvOrDefault 'EMPTY_OUTPUT_DIR' 'false')
+$SERVICE_ID  = (Get-EnvOrDefault 'SERVICE_ID')
+#$SEARCH_MODE = (Get-EnvOrDefault 'SEARCH_MODE')                   # e.g., 'next-sunday'
+#$TITLE_CONTAINS = (Get-EnvOrDefault 'TITLE_CONTAINS')
+#$FILE_STEM   = (Get-EnvOrDefault 'FILE_STEM')                       # optional CSV
+$CSSPATH    = (Get-EnvOrDefault 'PLAN_CSS_PATH' '/app/print.css')
+$PROFILES    = Get-JsonFromEnv 'PLAN_PROFILES'
+$PROFILES_ENV  = if ($env:PLAN_PROFILES) { $env:PLAN_PROFILES } else { $null }
+$PROFILES_FILE = if ($env:PLAN_PROFILES_FILE) { $env:PLAN_PROFILES_FILE } else { $null }
+$KEEP_HTML   = (Get-EnvOrDefault 'KEEP_HTML' 'false')
+
+$FLURO_USER  = Get-EnvOrDefault 'FLURO_USERNAME'
+$FLURO_PASS  = Get-EnvOrDefault 'FLURO_PASSWORD'
+
+# Validate required env vars
+if (-not $FLURO_USER -or -not $FLURO_PASS) {
+    Write-Error "FLURO_USERNAME/FLURO_PASSWORD must be set."
+    exit 2
+}
+if (-not (Test-Path -Path $OUTPUT_DIR)) {
+    Write-Debug "OUTPUT_DIR '$OUTPUT_DIR' does not exist. Creating it."
+    try {
+        New-Item -Path $OUTPUT_DIR -ItemType Directory -Force | Out-Null
+    }
+    catch {
+        Write-Error "Failed to create OUTPUT_DIR '$OUTPUT_DIR'. $_"
+        exit 2
+    }
+}
+if ($EMPTY_OUTPUT_DIR -eq 'true') {
+    Write-Debug "EMPTY_OUTPUT_DIR is true. Clearing contents of $OUTPUT_DIR"
+    try {
+        Get-ChildItem -Path $OUTPUT_DIR -Recurse | Remove-Item -Force -Recurse
+    }
+    catch {
+        Write-Error "Failed to clear OUTPUT_DIR '$OUTPUT_DIR'. $_"
+        exit 2
+    }
+}
+# ---------------------------
+# Build PSCredential from env
+# ---------------------------
+$secure = ConvertTo-SecureString $FLURO_PASS -AsPlainText -Force
+$flurocreds = [pscredential]::new($FLURO_USER, $secure)
+#endregion
+# ---------------------------
+
 #### Main Script Execution
-# Set working directory to the parent directory of the script
-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-Set-Location $scriptDir
-#region Config Import and Variables
-# Import configuration file if specified
-Write-Debug "Config file handling"
-Write-Debug "Config path: $configpath"
-if ($configpath) {
-    Write-Debug "Config file specified: $configpath"
-    Write-Host "Configuration file specified: $configpath" -ForegroundColor Green
-    # Check if the file exists
-    if (Test-Path $configpath) {
-        Write-Debug "Config file found: $configpath"
-        Write-Host "Importing configuration from $configpath" -ForegroundColor Green
-        $config = Get-Content $configpath | ConvertFrom-Json
-    }
-    else {
-        Write-Error "Configuration file not found at $configpath. Checking for default config file." 
-    }
-} else {
-    # If no config path specified, check for config.json in the script directory
-    $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-    $defaultConfigPath = Join-Path $scriptDir "config.json"
-    if (Test-Path $defaultConfigPath) {
-        Write-Debug "No config path specified, but config.json found in script directory: $defaultConfigPath"
-        Write-Host "Using configuration file found in script directory: $defaultConfigPath" -ForegroundColor Green
-        $config = Get-Content $defaultConfigPath | ConvertFrom-Json
-    } else {
-        Write-Debug "No config file found. Using defaults."
-        Write-Host "No configuration file found. Using defaults." -ForegroundColor Yellow
-    }
-}
-# Timezone is set to "America/Edmonton" by default
-# If the timezone is not specified in the config file, use the default
-Write-Debug "Timezone handling"
-if ($null -eq $config) {
-    Write-Host "No configuration file found. Using default timezone America/Edmonton" -ForegroundColor Yellow
-    $timezone = "America/Edmonton"
-} elseif ($null -eq $config.timezone) {
-    Write-Host "No timezone specified in the configuration file. Using default timezone  America/Edmonton." -ForegroundColor Yellow
-    $timezone = "America/Edmonton"
-} else {
-    Write-Host "Timezone specified in the configuration file: $($config.timezone)" -ForegroundColor Green
-    $timezone = $config.timezone
-}
-# Output directory is set to the current directory by default
-# If the output directory is not specified in the config file, use the current directory
-Write-Debug "Output directory handling"
-if ($null -eq $config) {
-    Write-Host "No configuration file found. Using current directory for output." -ForegroundColor Yellow
-    $outputdir = Get-Location
-} elseif ($null -eq $config.destinationpath) {
-    Write-Host "No output directory specified in the configuration file. Using current directory for output." -ForegroundColor Yellow
-    $outputdir = Get-Location
-} else {
-    Write-Host "Output directory specified in the configuration file: $($config.destinationpath)" -ForegroundColor Green
-    $outputdir = $config.destinationpath
-}
-#endregion
-
-#region Handle "LoginSubsplash" parameter
-# If -LoginSubsplash is specified, set up credentials and exit
-# This is useful for setting up credentials without running the rest of the script
-if ($LoginSubsplash) {
-    Write-Debug "LoginSubsplash parameter specified. Setting up credentials and exiting."
-    Write-Host "Setting up Fluro credentials..." -ForegroundColor Green
-    $flurocreds = Set-FluroCreds
-    if ($null -eq $flurocreds) {
-        Write-Error "Failed to set Fluro credentials. Please check file permissions."
-        Write-Host "Credentials not set. Script will not run without saved credentials." -ForegroundColor Red
-        Write-Host "Please run the script with -LoginSubsplash to set up credentials after confirming you can write to the directory." -ForegroundColor Red
-        exit 1
-    }
-    Write-Host "Testing Fluro credentials..." -ForegroundColor Green
-    try {
-        $fluroauth = Get-FluroAuthToken -FluroCreds $flurocreds
-    }
-    catch {
-        Write-Error "Failed to authenticate with Fluro API. Please check your credentials."
-        exit 1
-    }
-    if ($fluroauth.StatusCode -ne 200) {
-        Write-Error "Failed to authenticate with Fluro API. Please check your credentials."
-        exit 1
-    }
-    else {
-        Write-Host "Login test successful. You can now run the script without specifying -LoginSubsplash." -ForegroundColor Green
-    }
-    exit 0
-}
-#endregion
-
-#region Saved Credential Management
-# Credentials are saved in fluro.xml in the same directory as this script; password is encrypted. 
-# If the file doesn't exist, the script will prompt for credentials and create the file. 
-# If -headless is specified, then the script will exit with an error instead of prompting.
-###
-# Check if the credentials file exists
-Write-Debug "Main Script Credential handling"
-Write-Debug "Checking for fluro.xml file"
-if (Get-Item -Path "fluro.xml" -ErrorAction SilentlyContinue) {
-    Write-Host "Fluro credentials found. Loading..." -ForegroundColor Green
-    # Load the credentials from the file
-    try { 
-        $flurocreds = Import-Clixml -Path "fluro.xml"
-    }
-    catch {
-        Write-Debug "Failed to load credentials from fluro.xml. $_"
-        Write-Error "Failed to load Fluro credentials. Please check file permissions."
-        Write-Host "Credentials not loaded. Script will not run without saved credentials." -ForegroundColor Red
-        Write-Host "Please run the script with -LoginSubsplash to set up credentials after confirming you can write to the directory." -ForegroundColor Red
-        exit 1
-    }    
-}
-elseif ($headless) {
-    Write-Debug "Headless mode specified. Checking for credentials file."
-    # If -headless is specified and the credentials file doesn't exist, exit with an error
-    Write-Error "Credentials not found. Please run the script with -LoginSubsplash to set up credentials."
+Write-Debug "Starting printplan.ps1 script execution."
+#region Verify Fluro credentials
+if (-not $flurocreds) {
+    Write-Debug "Fluro credentials not provided."
+    Write-Error "Fluro credentials not provided. Exiting."
     exit 1 
 }
-else {
-    Write-Debug "Credentials file not found. Prompting for credentials."
-    # If the credentials file doesn't exist and -headless is not specified, prompt for credentials
-    Write-Host "Subsplash credentials not found. Please enter your credentials." -ForegroundColor Yellow
-    $flurocreds = Set-FluroCreds
-    if ($null -eq $flurocreds) {
-        Write-Error "Failed to set Fluro credentials. Please check file permissions." 
-        Write-Host "Credentials not set. Script will not run without saved credentials." -ForegroundColor Red
-        Write-Host "Please run the script with -LoginSubsplash to set up credentials after confirming you can write to the directory." -ForegroundColor Red
-        exit 1
-    }
-}
-
-Write-Host "Fluro credentials loaded successfully. Username is $($flurocreds.UserName). Accessing Fluro API..." -ForegroundColor Green
-# Check if the credentials are valid
 # Test the credentials by getting an auth token
 Write-Debug "Testing Fluro credentials..."
 try {
