@@ -53,8 +53,8 @@ All configuration is supplied via environment variables or a `.env` file. The mo
 
 | Variable            | Description                                                                                   | Example Value                                 |
 |---------------------|----------------------------------------------------------------------------------------------|-----------------------------------------------|
-| FLURO_USERNAME      | Subsplash Management API username                                                            | you@example.com                               |
-| FLURO_PASSWORD      | Subsplash Management API password                                                            | supersecret                                   |
+| SUBSPLASH_USERNAME      | Subsplash Management API username                                                            | you@example.com                               |
+| SUBSPLASH_PASSWORD      | Subsplash Management API password                                                            | supersecret                                   |
 | SERVICE_ID          | (Optional) Directly specify a service ID to print                                            | 6532abc123def4567890                          |
 | TIMEZONE            | IANA timezone name (default: `America/Edmonton`)                                             | America/Edmonton                              |
 | OUTPUT_DIR          | Output directory inside the container (default: `/data`)                                     | /data                                         |
@@ -71,8 +71,8 @@ All configuration is supplied via environment variables or a `.env` file. The mo
 #### Example `.env` file
 
 ```dotenv
-FLURO_USERNAME=you@example.com
-FLURO_PASSWORD=supersecret
+SUBSPLASH_USERNAME=you@example.com
+SUBSPLASH_PASSWORD=supersecret
 TIMEZONE=America/Edmonton
 OUTPUT_DIR=/data
 PLAN_PROFILES_FILE=/data/profiles.json
@@ -125,7 +125,7 @@ docker run --rm --env-file .env -v "$PWD/data:/data" -w /app timothiasthegreat/s
 
 ## Troubleshooting
 
-- **Authentication errors**: Check `FLURO_USERNAME` and `FLURO_PASSWORD` in your `.env`.
+- **Authentication errors**: Check `SUBSPLASH_USERNAME` and `SUBSPLASH_PASSWORD` in your `.env`.
 - **No services found**: Check your date range, credentials, or API access.
 - **Custom CSS not applied**: Confirm `CSSPATH` points to a valid file inside the container.
 - **Output directory issues**: Make sure your host directory is mounted to `/data` and permissions are correct.
