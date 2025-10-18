@@ -488,13 +488,18 @@ else {
 }
 #endregion
 
-#region List or Search Services
-# If -ListServices is specified, list all services for the next Sunday
-# If -serviceid is not specified, search for services for the next Sunday
-Write-Debug "List or Search Services"
-if ($ListServices -or -not $serviceid) {
-    Write-Debug "ListServices or service search triggered."
-    # Set up the date range for the search (next Sunday to end of that Sunday)
+#region Get or Search for Service ID
+Write-Debug "Get or Search for Service ID"
+
+# Use $SERVICE_ID if provided
+if ($SERVICE_ID) {
+    Write-Debug "SERVICE_ID environment variable provided: $SERVICE_ID"
+    $serviceid = $SERVICE_ID
+    Write-Host "Using SERVICE_ID from environment: $serviceid" -ForegroundColor Green
+}
+else {
+    # Search for services
+    Write-Debug "No SERVICE_ID provided. Searching for services."
     $now = Get-Date
     $localTimezone = $timezone
     $daysUntilSunday = (7 - [int]$now.DayOfWeek) % 7
@@ -502,40 +507,17 @@ if ($ListServices -or -not $serviceid) {
     $endDate = $nextSunday.AddDays(1).AddMilliseconds(-1)
     Write-Debug "Next Sunday: $nextSunday, End Date: $endDate"
     Write-Host "Searching for services from $nextSunday to $endDate in timezone $localTimezone." -ForegroundColor Green
-    # Create the filter body for the API request
-    Write-Debug "Creating filter body for API request."
+
     $filterBody = New-FluroServiceFilter -StartDate $nextSunday -EndDate $endDate -Timezone $localTimezone
     Write-Host "Getting list of services from Fluro API..." -ForegroundColor Green
-    # Get the services from the API
-    Write-Debug "Getting services from Fluro API..."
     $services = Get-FluroServices -AuthToken $token -FilterBody $filterBody
 
     if (-not $services -or $services.Count -eq 0) {
-        if ($ListServices) {
-            Write-Host "No services found." -ForegroundColor Yellow
-            exit 0
-        } else {
             Write-Error "No services found."
             exit 1
         }
-    }
 
-    if ($ListServices) {
-        Write-Debug "Services found: $($services.Count)"
-        Write-Debug "Services: $($services | ConvertTo-Json -Depth 10)"
-        Write-Debug "Displaying services in grid view."
-        $localTZ = [System.TimeZoneInfo]::Local
-        $services | Select-Object `
-            @{Name="Title";Expression={$_.title}},
-            @{Name="Start (Local)";Expression={ [System.TimeZoneInfo]::ConvertTimeFromUtc([datetime]$_.startDate, $localTZ).ToString("yyyy-MM-dd HH:mm") }},
-            @{Name="End (Local)";Expression={ [System.TimeZoneInfo]::ConvertTimeFromUtc([datetime]$_.endDate, $localTZ).ToString("yyyy-MM-dd HH:mm") }},
-            @{Name="_id";Expression={$_. _id}} |
-            Format-Table -AutoSize
-        Write-Debug "Exiting after listing services."
-        exit 0
-    }
-    Write-Debug "Services found: $($services.Count)"
-    # Filter out services that do not have plans by checking each service with Get-FluroServiceById
+    # Filter only services with plans
     Write-Debug "Filtering services to only those with plans."
     $servicesWithPlans = @()
     foreach ($svc in $services) {
@@ -546,53 +528,31 @@ if ($ListServices -or -not $serviceid) {
     }
     $services = $servicesWithPlans
     Write-Debug "Filtered services with plans: $($services.Count)"
+
     if (-not $services -or $services.Count -eq 0) {
         Write-Error "No services with plans found."
         exit 1
     }
-    # If no service ID is specified, use the ID from the found service, or prompt the user to select a service if multiple are found
-    if (-not $serviceid) {
+
+    # If only one service, use its ID
         if ($services.Count -eq 1) {
-            # Only one service found, use its ID
             $serviceid = $services[0]._id
-            Write-Host "Service ID: $serviceid" -ForegroundColor Green
+        Write-Host "Only one service with a plan found. Using Service ID: $serviceid" -ForegroundColor Green
             Write-Host "Service Title: $($services[0].title)" -ForegroundColor Green
         }
-        elseif ($services.Count -gt 1) {
-            if ($Headless) {
-                Write-Error "Multiple services found. Please run without -headless to select a service."
-                exit 1
-            }
-            Write-Debug "Multiple services found. Displaying in grid view."
-            Write-Host "Multiple services found. Please select one:" -ForegroundColor Yellow
-            # Display the services in a grid view for selection
-            $localTZ = [System.TimeZoneInfo]::Local
-            $servicesDisplay = $services | Select-Object `
-                @{Name="Title";Expression={$_.title}},
-                @{Name="Start (Local)";Expression={ [System.TimeZoneInfo]::ConvertTimeFromUtc([datetime]$_.startDate, $localTZ).ToString("yyyy-MM-dd HH:mm") }},
-                @{Name="End (Local)";Expression={ [System.TimeZoneInfo]::ConvertTimeFromUtc([datetime]$_.endDate, $localTZ).ToString("yyyy-MM-dd HH:mm") }},
-                @{Name="_id";Expression={$_. _id}}
-
-            $selectedService = $servicesDisplay | Out-GridView -Title "Select a Service" -PassThru
-            if (-not $selectedService) {
-                Write-Error "No service selected. Exiting."
-                exit 1
-            }
-            $serviceid = $selectedService._id
-            Write-Host "Selected Service ID: $serviceid" -ForegroundColor Green
-            Write-Host "Selected Service Title: $($selectedService.title)" -ForegroundColor Green
-        }
+    else {
+        # More than one service: print list and exit with instructions
+        Write-Host "Multiple services with plans found. Please specify a service ID using the SERVICE_ID environment variable or script parameter." -ForegroundColor Yellow
+        $services | Select-Object @{Name="Title";Expression={$_.title}}, @{Name="ID";Expression={$_. _id}} | Format-Table -AutoSize
+        Write-Host "`nRerun the script with the desired service ID, e.g.:" -ForegroundColor Yellow
+        Write-Host "    `$env:SERVICE_ID = <service_id>; .\printplan.ps1" -ForegroundColor Cyan
+        exit 0
     }
-} else {
-    Write-Debug "Service ID provided: $serviceid"
-    Write-Host "Service ID provided: $serviceid. Skipping service search." -ForegroundColor Green
 }
 #endregion
 
 #region Get Service Details
 Write-Debug "Get Service Details"
-if ($serviceid) {
-    Write-Debug "Service ID provided: $serviceid"
     Write-Host "Getting service details for ID: $serviceid" -ForegroundColor Green
     $serviceDetails = Get-FluroServiceById -AuthToken $token -ServiceId $serviceid
     if (-not $serviceDetails) {
@@ -603,35 +563,14 @@ if ($serviceid) {
 
     # Handle multiple plans
     if ($serviceDetails.plans.Count -gt 1) {
-        if ($Headless) {
-            Write-Debug "Headless mode specified. More than one plan found for this service."
-            Write-Error "More than one plan found for this service. Cannot select a plan in headless mode. Exiting."
-            exit 1
-        } else {
-            Write-Warning "More than one plan found for this service. Please select one:"
-            write-Debug "Displaying plans in grid view."
-            $plansDisplay = $serviceDetails.plans | Select-Object `
-                @{Name="Index";Expression={ [array]::IndexOf($serviceDetails.plans, $_) }},
-                title,
-                startDate
-            $selectedPlan = $plansDisplay | Out-GridView -Title "Select a Plan" -PassThru
-            if (-not $selectedPlan) {
-                Write-Error "No plan selected. Exiting."
+        Write-Debug "Multiple plans found for this service: $($serviceDetails.plans.Count)"
+        Write-Error "More than one plan found for this service. Cannot select a plan in non-interactive mode. Exiting."
                 exit 1
-            }
-            # Set $serviceDetails.plans to only the selected plan
-            Write-Debug "Selected plan: $($selectedPlan.title)"
-            $serviceDetails.plans = @($serviceDetails.plans[$selectedPlan.Index])
-        }
     } elseif ($serviceDetails.plans.Count -eq 0) {
         Write-Error "No plans found for this service. Exiting."
         exit 1
     }
-}
-else {
-    Write-Error "No service ID provided. Exiting."
-    exit 1
-}
+
 #endregion
 
 #region List Teams
