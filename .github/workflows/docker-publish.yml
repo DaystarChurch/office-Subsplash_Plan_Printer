@@ -1,8 +1,8 @@
 name: Build and Publish Docker Image
 
 on:
-  push:
-    branches: [ main ]
+  release:
+    types: [published]
     paths:
       - 'Dockerfile'
       - '.github/workflows/docker-publish.yml'
@@ -35,4 +35,4 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: yourdockerhubusername/your-image-name:latest
+          tags: timothiasthegreat/subsplash_plan_printer:latest
