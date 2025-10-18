@@ -1,135 +1,129 @@
-# Subsplash Plan Printing Script Documentation
+# Subsplash Plan Printing Script (Container Edition)
 
 ## Overview
 
-This PowerShell script (printplan.ps1) automates the retrieval, formatting, and printing of service plans from the Subsplash Management API. It supports interactive and headless (automated) operation, credential management, configuration via JSON, and output as HTML or PDF. The script is designed for teams who need to generate printable plansheets for services, including team assignments and schedules.
+This PowerShell script (`printplan.ps1`) automates the retrieval, formatting, and printing of service plans from the Subsplash Management API. It is designed to run **headless** in a Docker container, with all configuration and credentials supplied via environment variables or a `.env` file. Output is generated as PDF (and optionally HTML), with customizable profiles and team columns.
 
 ---
 
 ## Features
 
-- **Authenticate with Subsplash Management API** using securely stored credentials.
-- **Filters services** based on the next Sunday date.
+- **Authenticate with Subsplash Management API** using credentials passed as environment variables.
+- **Filter services** based on the next Sunday date or by direct service ID.
 - **Select and retrieve service details** (including multiple plans per service).
 - **List teams** involved in a plan.
-- **Render plansheets** as HTML or PDF, with customizable profiles and team columns.
-- **Configurable output directory, timezone, and profiles** via a JSON config file.
-- **Supports both interactive and headless (automation) modes.**
+- **Render plansheets** as PDF (and optionally HTML), with customizable profiles and team columns.
+- **Configurable output directory, timezone, CSS, and profiles** via environment variables or external JSON files.
+- **Supports fully automated, headless operation**—no prompts or interactive steps.
 
 ---
 
 ## Prerequisites
 
-- **PowerShell 7+**: Ensure you have PowerShell 7 or later installed.
-- **Microsoft Edge**: Required for PDF generation and HTML preview.
+- **Docker**: All dependencies are packaged in the container image.
 - **Internet Access**: The script needs to access the Subsplash Management API.
-- **Credentials**: You must have valid Subsplash Management credentials stored securely.
-- **JSON Config File**: Optional, for advanced configuration (see below).
+- **Subsplash Management Credentials**: Supplied via environment variables or `.env` file.
+- **Optional**: `profiles.json` for plan profiles, custom CSS file.
 
 ---
 
 ## Usage
 
-### Parameters
+### Configuration
 
-| Parameter         | Type      | Description                                                                 |
-|-------------------|-----------|-----------------------------------------------------------------------------|
-| `-LoginSubsplash` | Switch    | Prompts for Subsplash Management credentials and saves them securely.                      |
-| `-ListTeams`      | Switch    | Lists all teams in the selected plan and exits.                             |
-| `-ListServices`   | Switch    | Lists all services for the next Sunday and exits.                           |
-| `-PrintSongs`     | Switch    | (Reserved for future use.)                                                  |
-| `-PrintPlan`      | Switch    | Generates and outputs the plansheet (HTML or PDF).                          |
-| `-Headless`       | Switch    | Runs in headless mode (no GUI prompts, outputs PDF).                        |
-| `-serviceid`      | String    | Specify a Subsplash Management service ID directly (skips service selection).              |
-| `-Teams`          | String[]  | Specify which teams to include in the plansheet (overrides config/profile).  |
-| `-configpath`     | String    | Path to a JSON config file for advanced options.                            |
+All configuration is supplied via environment variables or a `.env` file. The most common options are:
 
----
+| Variable            | Description                                                                                   | Example Value                                 |
+|---------------------|----------------------------------------------------------------------------------------------|-----------------------------------------------|
+| FLURO_USERNAME      | Subsplash Management API username                                                            | you@example.com                               |
+| FLURO_PASSWORD      | Subsplash Management API password                                                            | supersecret                                   |
+| SERVICE_ID          | (Optional) Directly specify a service ID to print                                            | 6532abc123def4567890                          |
+| TIMEZONE            | IANA timezone name (default: `America/Edmonton`)                                             | America/Edmonton                              |
+| OUTPUT_DIR          | Output directory inside the container (default: `/data`)                                     | /data                                         |
+| PLAN_PROFILES       | (Optional) JSON array of plan profiles (see below)                                           | [{"Name":"Media",...}]                        |
+| PLAN_PROFILES_FILE  | (Optional) Path to a JSON file with plan profiles (e.g., `/data/profiles.json`)              | /data/profiles.json                           |
+| EMPTY_OUTPUT_DIR    | (Optional) If `true`, empties the output directory before generating new files (default: false)| true                                          |
+| KEEP_HTML           | (Optional) If `true`, keeps intermediate HTML files alongside PDFs (default: false)           | true                                          |
 
-### Example Commands
-
-*Service ID can be ommitted if there is only one service available, or you can specify it directly.*
-
-- **Set up credentials:**
-
-  ```powershell
-  .\printplan.ps1 -LoginSubsplash
-  ```
-
-- **List services for next Sunday:**
-
-  ```powershell
-  .\printplan.ps1 -ListServices
-  ```
-
-- **List teams for a specific service:**
-
-  ```powershell
-  .\printplan.ps1 -serviceid "<SERVICE_ID>" -ListTeams
-  ```
-
-- **Print plansheet for a service (interactive HTML):**
-
-  ```powershell
-  .\printplan.ps1 -serviceid "<SERVICE_ID>" -PrintPlan
-  ```
-
-- **Print plansheet for a service (headless PDF):**
-
-  ```powershell
-  .\printplan.ps1 -serviceid "<SERVICE_ID>" -PrintPlan -Headless
-  ```
-
-- **Use a custom config file:**
-
-  ```powershell
-  .\printplan.ps1 -configpath "C:\path\to\config.json" -PrintPlan
-  ```
-
-- **Schedule a task to run weekly: (may require admin rights on computer)**
-
-  ```powershell
-  $action = New-ScheduledTaskAction -Execute "pwsh.exe" -Argument "-File C:\path\to\printplan.ps1 -Headless -PrintPlan -configpath C:\path\to\config.json"
-  $trigger = New-ScheduledTaskTrigger -Weekly -DaysofWeek Sunday -At 8am
-  Register-ScheduledTask -Action $action -Trigger $trigger -TaskName "WeeklyPlanPrint" -User "SYSTEM"
-  ```
+**Precedence for profiles:**  
+`PLAN_PROFILES` (inline JSON) > `PLAN_PROFILES_FILE` (external file) > fallback to “All Teams” from plan.
 
 ---
 
-## Configuration File (`config.json`)
+### Example `.env` file
 
-You can provide a JSON config file to customize script behavior. Example:
-
-```json
-{
-  "timezone": "America/Edmonton",
-  "destinationpath": "C:\\Plansheets",
-  "planprofiles": [
-    { "Name": "All Teams", "orientation": "landscape", "Teams": ["Band", "Tech", "Host"] },
-    { "Name": "Band Only", "orientation": "landscape", "Teams": ["Band"] }
-  ]
-}
+```dotenv
+FLURO_USERNAME=you@example.com
+FLURO_PASSWORD=supersecret
+TIMEZONE=America/Edmonton
+OUTPUT_DIR=/data
+PLAN_PROFILES_FILE=/data/profiles.json
+CSSPATH=/app/print.css
+EMPTY_OUTPUT_DIR=false
+KEEP_HTML=false
 ```
 
-- **timezone**: IANA or Windows timezone ID (default: `America/Edmonton`)
-- **destinationpath**: Output directory for generated files
-- **planprofiles**: Array of profiles, each with a name, print orientation (landscape or portrait) and list of teams to include as columns
+---
+
+### Example `profiles.json`
+
+```json
+[
+  { "Name": "Media", "Teams": ["Band","NOTES","MEDIA - PROPRESENTER"], "orientation": "portrait" },
+  { "Name": "Sound", "Teams": ["Band","NOTES","SOUND"], "orientation": "portrait" },
+  { "Name": "All Teams", "Teams": ["Band","NOTES","MEDIA - PROPRESENTER","SOUND","LIVE STREAM SOUND","LIVE STREAM","Lighting"], "orientation": "landscape" }
+]
+```
 
 ---
 
-## Credential Management
+### Docker Compose Example
 
-- Credentials are stored securely in cred.xml (encrypted for the current user).
-- Use `-LoginSubsplash` to set or update credentials.
-- If credentials are missing and not in headless mode, you will be prompted to enter them.
-- `-headless` mode will exit with an error if credentials are not found.
+```yaml
+version: "3.9"
+services:
+  planprinter:
+    image: timothiasthegreat/subsplash_plan_printer
+    env_file: [.env]
+    volumes:
+      - ./data:/data
+    working_dir: /app
+    entrypoint: ["pwsh","-File","/app/printplan.ps1"]
+```
+
+---
+
+### Running the Container
+
+```bash
+docker compose up --abort-on-container-exit
+# Or with docker run:
+docker run --rm --env-file .env -v "$PWD/data:/data" -w /app daystar/planprinter
+```
 
 ---
 
 ## Output
 
-- **HTML**: Opens in your default browser (Edge) for review/printing.
-- **PDF**: Saved directly to the output directory (requires Microsoft Edge installed).
+- **PDF files** are saved to the output directory (`OUTPUT_DIR`, default `/data`).
+- **HTML files** are optionally kept if `KEEP_HTML=true`.
+- If `EMPTY_OUTPUT_DIR=true`, the output directory is cleared before each run.
+
+---
+
+## Customization
+
+- **CSS**: Provide a custom CSS file and set `CSSPATH` to its path inside the container.
+- **Plan Profiles**: Use `PLAN_PROFILES` (inline JSON) or `PLAN_PROFILES_FILE` (external file) to define multiple output profiles.
+
+---
+
+## Troubleshooting
+
+- **Authentication errors**: Check `FLURO_USERNAME` and `FLURO_PASSWORD` in your `.env`.
+- **No services found**: Check your date range, credentials, or API access.
+- **Custom CSS not applied**: Confirm `CSSPATH` points to a valid file inside the container.
+- **Output directory issues**: Make sure your host directory is mounted to `/data` and permissions are correct.
 
 ---
 
@@ -140,17 +134,10 @@ You can provide a JSON config file to customize script behavior. Example:
 
 ---
 
-## Customization
+## Notes
 
-- You can modify the default CSS by providing a print.css file in the script directory or via the config.
-- Plan profiles allow you to generate multiple plansheets with different team columns in one run.
-
----
-
-## Troubleshooting
-
-- **Authentication errors**: Re-run with `-LoginSubsplash` to reset credentials.
-- **No services found**: Check your date range, credentials, or API access.
-- **PDF not generated**: Ensure Edge is installed and accessible via `msedge` command.
+- All configuration is via environment variables or files mounted into the container.
+- No interactive prompts; all runs are headless and suitable for automation.
+- Credentials should be managed securely—prefer Docker secrets for production.
 
 ---
