@@ -405,8 +405,8 @@ function Convert-PlanHtmlToPdf {
         }
     }
     finally {
-            Remove-Item $tempHtml -ErrorAction SilentlyContinue
-        }
+        Remove-Item $tempHtml -ErrorAction SilentlyContinue
+    }
 }
 #endregion
 
@@ -468,7 +468,7 @@ Write-Debug "Starting printplan.ps1 script execution."
 if (-not $flurocreds) {
     Write-Debug "Fluro credentials not provided."
     Write-Error "Fluro credentials not provided. Exiting."
-    exit 1 
+    exit 1
 }
 # Test the credentials by getting an auth token
 Write-Debug "Testing Fluro credentials..."
@@ -517,9 +517,9 @@ else {
     $services = Get-FluroServices -AuthToken $token -FilterBody $filterBody
 
     if (-not $services -or $services.Count -eq 0) {
-            Write-Error "No services found."
-            exit 1
-        }
+        Write-Error "No services found."
+        exit 1
+    }
 
     # Filter only services with plans
     Write-Debug "Filtering services to only those with plans."
@@ -539,11 +539,11 @@ else {
     }
 
     # If only one service, use its ID
-        if ($services.Count -eq 1) {
-            $serviceid = $services[0]._id
+    if ($services.Count -eq 1) {
+        $serviceid = $services[0]._id
         Write-Host "Only one service with a plan found. Using Service ID: $serviceid" -ForegroundColor Green
-            Write-Host "Service Title: $($services[0].title)" -ForegroundColor Green
-        }
+        Write-Host "Service Title: $($services[0].title)" -ForegroundColor Green
+    }
     else {
         # More than one service: print list and exit with instructions
         Write-Host "Multiple services with plans found. Please specify a service ID using the SERVICE_ID environment variable or script parameter." -ForegroundColor Yellow
@@ -569,7 +569,7 @@ Write-Debug "Get Service Details"
     if ($serviceDetails.plans.Count -gt 1) {
         Write-Debug "Multiple plans found for this service: $($serviceDetails.plans.Count)"
         Write-Error "More than one plan found for this service. Cannot select a plan in non-interactive mode. Exiting."
-                exit 1
+        exit 1
     } elseif ($serviceDetails.plans.Count -eq 0) {
         Write-Error "No plans found for this service. Exiting."
         exit 1
@@ -616,36 +616,36 @@ Write-Debug "Resolved $($profiles.Count) plansheet profiles."
 #endregion
 #region Render Plansheet(s)
 Write-Debug "Rendering plansheet."
-    if (-not $serviceDetails -or -not $serviceDetails.plans -or $serviceDetails.plans.Count -eq 0) {
-        Write-Error "No service details or plans found. Cannot render plansheet." 
-        exit 1
-    }
-    #Get complete plan details for the first plan
-    Write-Host "Getting complete plan details for Plan ID: $($serviceDetails.plans[0]._id)" -ForegroundColor Green
-    $planDetails = Get-FluroPlanDetails -AuthToken $token -PlanId $serviceDetails.plans[0]._id
-    if (-not $planDetails) {
-        Write-Error "Failed to retrieve plan details for Plan ID $($serviceDetails.plans[0]._id). Exiting."
-        exit 1
-    }
-    Write-Debug "Rendering plansheet for service ID: $serviceid, looping though profiles."
+if (-not $serviceDetails -or -not $serviceDetails.plans -or $serviceDetails.plans.Count -eq 0) {
+    Write-Error "No service details or plans found. Cannot render plansheet." 
+    exit 1
+}
+#Get complete plan details for the first plan
+Write-Host "Getting complete plan details for Plan ID: $($serviceDetails.plans[0]._id)" -ForegroundColor Green
+$planDetails = Get-FluroPlanDetails -AuthToken $token -PlanId $serviceDetails.plans[0]._id
+if (-not $planDetails) {
+    Write-Error "Failed to retrieve plan details for Plan ID $($serviceDetails.plans[0]._id). Exiting."
+    exit 1
+}
+Write-Debug "Rendering plansheet for service ID: $serviceid, looping though profiles."
 foreach ($planprofile in $profiles) {
     if (-not $planprofile.Teams -or $planprofile.Teams.Count -eq 0) {
-            Write-Host "No teams found in profile '$($planprofile.Name)'. Skipping..." -ForegroundColor Red
-            continue
-        }
-        $Teams = $planprofile.Teams
-        $safeProfileName = ($planprofile.Name -replace '[^a-zA-Z0-9\-]', '-').Trim('-') -replace '-+', '-'
-        $safePlanTitle = ($planDetails.title -replace '[^a-zA-Z0-9\-]', '-').Trim('-') -replace '-+', '-'
-        Write-Host "Rendering plansheet for profile '$($planprofile.Name)' with teams: $($Teams -join ', ')" -ForegroundColor Green
-        Write-Debug "Teams: $($Teams | ConvertTo-Json -Depth 10)"
-        try {
-            Write-Debug "Generating HTML for profile '$($planprofile.Name)'..."
-            $html = New-PlanHtml -plandetails $planDetails -Teams $Teams -PlanName $planprofile.Name -orientation $planprofile.orientation
-        }
-        catch {
-            Write-Error "Failed to generate HTML for profile '$($planprofile.Name)'. $_"
-            continue
-        }
+        Write-Host "No teams found in profile '$($planprofile.Name)'. Skipping..." -ForegroundColor Red
+        continue
+    }
+    $Teams = $planprofile.Teams
+    $safeProfileName = ($planprofile.Name -replace '[^a-zA-Z0-9\-]', '-').Trim('-') -replace '-+', '-'
+    $safePlanTitle = ($planDetails.title -replace '[^a-zA-Z0-9\-]', '-').Trim('-') -replace '-+', '-'
+    Write-Host "Rendering plansheet for profile '$($planprofile.Name)' with teams: $($Teams -join ', ')" -ForegroundColor Green
+    Write-Debug "Teams: $($Teams | ConvertTo-Json -Depth 10)"
+    try {
+        Write-Debug "Generating HTML for profile '$($planprofile.Name)'..."
+        $html = New-PlanHtml -plandetails $planDetails -Teams $Teams -PlanName $planprofile.Name -orientation $planprofile.orientation
+    }
+    catch {
+        Write-Error "Failed to generate HTML for profile '$($planprofile.Name)'. $_"
+        continue
+    }
 
     $timestamp = Get-Date -Format 'yyyyMMdd_HHmm'
     $outputBaseName = "$($safeProfileName)_$($safePlanTitle)_$timestamp"
@@ -653,12 +653,12 @@ foreach ($planprofile in $profiles) {
     $outputHtmlPath = Join-Path -Path $OUTPUT_DIR -ChildPath ($outputBaseName + ".html")
 
     # Always save PDF
-            try {
-                Write-Debug "Converting HTML to PDF..."
+    try {
+        Write-Debug "Converting HTML to PDF..."
         Convert-PlanHtmlToPdf -PlanHtml $html -OutPath $outputPdfPath
         Write-Host "Plansheet PDF saved to: $outputPdfPath" -ForegroundColor Magenta
-            }
-            catch {
+    }
+    catch {
         Write-Error "Failed to convert HTML to PDF or save to $outputPdfPath. $_"
     }
     # Save HTML if requested
@@ -670,7 +670,7 @@ foreach ($planprofile in $profiles) {
             }
             catch {
                 Write-Error "Failed to write HTML to $outputHtmlPath. $_"
-        }
+            }
     }
 }
 #endregion
