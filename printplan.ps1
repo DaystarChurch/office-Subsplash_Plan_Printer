@@ -203,7 +203,9 @@ function Get-FluroPlanDetails {
         return $null
     }
 }
-
+# ---------------------------
+# Plansheet rendering functions
+# ---------------------------
 function New-PlanHtml {
     param(
         [Parameter(Mandatory = $true)]
@@ -235,7 +237,8 @@ function New-PlanHtml {
     $plan = $plandetails
     $serviceTitle = $plan.event.title
     $serviceDateTimeUtc = [datetime]::Parse($plan.startDate)
-    $serviceDateTimeLocal = [System.TimeZoneInfo]::ConvertTimeFromUtc($serviceDateTimeUtc, [System.TimeZoneInfo]::FindSystemTimeZoneById("Mountain Standard Time"))
+    $serviceTz = [System.TimeZoneInfo]::FindSystemTimeZoneById($timezone)  # e.g., "America/Edmonton"
+    $serviceDateTimeLocal = [System.TimeZoneInfo]::ConvertTimeFromUtc($serviceDateTimeUtc, $serviceTz)
     $serviceDateTimeStr = $serviceDateTimeLocal.ToString("dddd, MMMM d, yyyy 'at' h:mm tt")
 
     # Versioning data
@@ -375,32 +378,33 @@ function Convert-PlanHtmlToPdf {
         [Parameter(Mandatory = $true)]
         [string]$OutPath
     )
-    # Check for WeasyPrint exe in script directory
-    if (-not (Get-Item -path "weasyprint.exe" -ErrorAction SilentlyContinue)) {
-        Write-Error "WeasyPrint executable not found in script directory. Please download WeasyPrint and place weasyprint.exe in the script directory."
-        throw "WeasyPrint executable not found."
-    }
 
-    # Create a temporary HTML file
+    # Create a temp HTML file
     $tempHtml = [System.IO.Path]::GetTempFileName() -replace '\.tmp$', '.html'
     Set-Content -Path $tempHtml -Value $PlanHtml -Encoding UTF8
-    Write-Debug "Temporary HTML file created at: $tempHtml"
 
     try {
-        # Run WeasyPrint to convert to PDF
-        $weasyPrintPath = Join-Path $scriptDir "weasyprint.exe"
-        $process = Start-Process -FilePath $weasyPrintPath -ArgumentList "`"$tempHtml`"", "`"$OutPath`"" -Wait -PassThru
-        if ($process.ExitCode -ne 0) {
-            Write-Error "WeasyPrint exited with code $($process.ExitCode). PDF may not have been created."
+        # Call the Python-based CLI that's on PATH inside the container
+        # Equivalent CLI exists as "python -m weasyprint" as well.
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName = "weasyprint"
+        $psi.ArgumentList.Add($tempHtml)
+        $psi.ArgumentList.Add($OutPath)
+        $psi.RedirectStandardOutput = $true
+        $psi.RedirectStandardError  = $true
+        $psi.UseShellExecute = $false
+
+        $p = [System.Diagnostics.Process]::Start($psi)
+        $stdout = $p.StandardOutput.ReadToEnd()
+        $stderr = $p.StandardError.ReadToEnd()
+        $p.WaitForExit()
+
+        if ($p.ExitCode -ne 0) {
+            Write-Error "WeasyPrint failed (exit $($p.ExitCode)). STDERR:`n$stderr"
+            throw "WeasyPrint conversion failed."
         }
     }
-    catch {
-        Write-Error "Failed to run WeasyPrint for PDF conversion: $_"
-        throw
-    }
     finally {
-        # Clean up temp file
-        try {
             Remove-Item $tempHtml -ErrorAction SilentlyContinue
         }
 }
