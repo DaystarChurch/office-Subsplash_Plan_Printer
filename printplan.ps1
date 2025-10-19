@@ -42,19 +42,36 @@ function Get-JsonFile {
     }
 }
 function Write-Log {
-    #Log levels: DEBUG, INFO, WARNING, ERROR, VERBOSE
     param(
         [string]$Message,
         [string]$Level = "INFO"
     )
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $logEntry = "[$timestamp] - [$Level] - $Message"
-    try {
-        Add-Content -Path $LOGPATH -Value $logEntry
+    # Define log level order
+    $levels = @("DEBUG", "INFO", "WARNING", "ERROR", "VERBOSE")
+    $levelOrder = @{
+        "DEBUG"   = 0
+        "INFO"    = 1
+        "WARNING" = 2
+        "ERROR"   = 3
+        "VERBOSE" = 4
     }
-    catch {
-        Write-Host "Failed to write to log file '$LOGPATH'. $_" -ForegroundColor Red
-        Write-Error "Write-Log: Could not write to log file '$LOGPATH'. $_"
+    # Default to INFO if $LOGLEVEL is not set or invalid
+    $currentLevel = $levelOrder[$LOGLEVEL]
+    if ($null -eq $currentLevel) { $currentLevel = $levelOrder["INFO"] }
+    $msgLevel = $levelOrder[$Level]
+    if ($null -eq $msgLevel) { $msgLevel = $levelOrder["INFO"] }
+
+    # Only log if message level is >= configured level
+    if ($msgLevel -ge $currentLevel) {
+        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        $logEntry = "[$timestamp] - [$Level] - $Message"
+        try {
+            Add-Content -Path $LOGPATH -Value $logEntry
+        }
+        catch {
+            Write-Host "Failed to write to log file '$LOGPATH'. $_" -ForegroundColor Red
+            Write-Error "Write-Log: Could not write to log file '$LOGPATH'. $_"
+        }
     }
 }
 
