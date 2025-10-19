@@ -99,19 +99,16 @@ function Get-SubsplashAuthToken {
     $Password = $($Password | ConvertFrom-SecureString -AsPlainText)
     Write-Log "Constructing body for authentication request." -Level "DEBUG"
     $body = "grant_type=password&username=$([uri]::EscapeDataString($UserName))&password=$([uri]::EscapeDataString($Password))"
-    Write-Log "Auth Body: $body" -Level "VERBOSE"
     $headers = @{
         "Content-Type" = "application/x-www-form-urlencoded"
         "User-Agent"   = "PowerShell"
         "Accept"       = "*/*"
     }
-    Write-Log "Auth Headers: $($headers | ConvertTo-Json -Depth 10)" -Level "VERBOSE"
-
     Try {
         Write-Log "Sending authentication request to Subsplash API." -Level "DEBUG"
         $response = Invoke-RestMethod -Uri "https://api.fluro.io/token/login" -Method Post -Headers $headers -Body $body -StatusCodeVariable statusCode
         Write-Log "Authentication successful. Status Code: $statusCode" -Level "DEBUG"
-        Write-Log "Auth Response: $($response | ConvertTo-Json -Depth 10)" -Level "VERBOSE"
+        Write-Log "Auth Response: $($response | Select-Object -Property name, email, accountType | ConvertTo-Json -Depth 10)" -Level "VERBOSE"
     }
     Catch {
         Write-Log "Failed to authenticate with Subsplash API. $_" -Level "ERROR"
@@ -479,6 +476,21 @@ $KEEP_HTML   = (Get-EnvOrDefault 'KEEP_HTML' 'false')
 $SUBSPLASH_USER  = Get-EnvOrDefault 'SUBSPLASH_USERNAME'
 $SUBSPLASH_PASS  = Get-EnvOrDefault 'SUBSPLASH_PASSWORD'
 
+# Init log file
+Write-Log "---------------------------"
+Write-Log "printplan.ps1 script started."
+Write-Log "Log level set to $LOGLEVEL"
+Write-Log "Output directory: $OUTPUT_DIR"
+Write-Log "Empty output directory: $EMPTY_OUTPUT_DIR"
+if ($SERVICE_ID) {
+    Write-Log "SERVICE_ID provided: $SERVICE_ID"
+} else {
+    Write-Log "No SERVICE_ID provided; will search for services."
+}
+Write-Log "Timezone: $TIMEZONE"
+Write-Log "CSS Path: $CSSPATH"
+Write-Log "KEEP_HTML: $KEEP_HTML"
+Write-Log "----------------------------"
 # Validate required env vars
 if (-not $SUBSPLASH_USER -or -not $SUBSPLASH_PASS) {
     Write-Log "SUBSPLASH_USERNAME/SUBSPLASH_PASSWORD must be set. Cannot continue without credentials." -Level "ERROR"
