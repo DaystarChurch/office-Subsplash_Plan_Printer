@@ -39,21 +39,21 @@ function Get-JsonFile {
     }
 }
 # ---------------------------
-# Fluro API functions
+# Subsplash API functions
 # ---------------------------
-function Get-FluroAuthToken {
+function Get-SubsplashAuthToken {
     param(
         [Parameter(Mandatory = $true)]
-        [pscredential]$FluroCreds
+        [pscredential]$SubsplashCreds
     )
-    Write-Debug "Get-FluroAuthToken function called."
-    $UserName = $FluroCreds.UserName
+    Write-Debug "Get-SubsplashAuthToken function called."
+    $UserName = $SubsplashCreds.UserName
     Write-Debug "Username: $UserName"
     if (-not $UserName) {
         Write-Error "Username is empty. Please provide a valid username."
         return
     }
-    $Password = $FluroCreds.Password
+    $Password = $SubsplashCreds.Password
     if (-not $Password) {
         Write-Error "Password is empty. Please provide a valid password."
         return
@@ -69,11 +69,11 @@ function Get-FluroAuthToken {
     }
 
     Try {
-        Write-Debug "Sending authentication request to Fluro API."
+        Write-Debug "Sending authentication request to Subsplash API."
         $response = Invoke-RestMethod -Uri "https://api.fluro.io/token/login" -Method Post -Headers $headers -Body $body -StatusCodeVariable statusCode
     }
     Catch {
-        Write-Error "Failed to authenticate with Fluro API. $_"
+        Write-Error "Failed to authenticate with Subsplash API. $_"
         return $_
     }
 
@@ -85,7 +85,7 @@ function Get-FluroAuthToken {
     }
 }
 
-function New-FluroServiceFilter {
+function New-SubsplashServiceFilter {
     param(
         [Parameter(Mandatory = $true)]
         [datetime]$StartDate,
@@ -126,7 +126,7 @@ function New-FluroServiceFilter {
         timezone          = $Timezone
     }
 }
-function Get-FluroServices {
+function Get-SubsplashServices {
     param(
         [Parameter(Mandatory = $true)]
         [string]$AuthToken,
@@ -147,7 +147,7 @@ function Get-FluroServices {
     return $response
 }
 
-function Get-FluroServiceById {
+function Get-SubsplashServiceById {
     param(
         [Parameter(Mandatory = $true)]
         [string]$AuthToken,
@@ -168,12 +168,12 @@ function Get-FluroServiceById {
         return $response
     }
     catch {
-        Write-Error "Failed to retrieve service with ID $ServiceId from Fluro API."
+        Write-Error "Failed to retrieve service with ID $ServiceId from Subsplash API."
         return $null
     }
 }
 
-function Get-FluroPlanDetails {
+function Get-SubsplashPlanDetails {
     param(
         [Parameter(Mandatory = $true)]
         [string]$AuthToken,
@@ -193,7 +193,7 @@ function Get-FluroPlanDetails {
 
     try {
         # Make the API request
-        Write-Debug "Sending request to Fluro API for plan details. URL: $url"
+        Write-Debug "Sending request to Subsplash API for plan details. URL: $url"
         $response = Invoke-RestMethod -Uri $url -Method Get -Headers $headers
         Write-Debug "Plan details retrieved successfully."
         return $response
@@ -426,12 +426,12 @@ $PROFILES_ENV  = if ($env:PLAN_PROFILES) { $env:PLAN_PROFILES } else { $null }
 $PROFILES_FILE = if ($env:PLAN_PROFILES_FILE) { $env:PLAN_PROFILES_FILE } else { $null }
 $KEEP_HTML   = (Get-EnvOrDefault 'KEEP_HTML' 'false')
 
-$FLURO_USER  = Get-EnvOrDefault 'FLURO_USERNAME'
-$FLURO_PASS  = Get-EnvOrDefault 'FLURO_PASSWORD'
+$SUBSPLASH_USER  = Get-EnvOrDefault 'SUBSPLASH_USERNAME'
+$SUBSPLASH_PASS  = Get-EnvOrDefault 'SUBSPLASH_PASSWORD'
 
 # Validate required env vars
-if (-not $FLURO_USER -or -not $FLURO_PASS) {
-    Write-Error "FLURO_USERNAME/FLURO_PASSWORD must be set."
+if (-not $SUBSPLASH_USER -or -not $SUBSPLASH_PASS) {
+    Write-Error "SUBSPLASH_USERNAME/SUBSPLASH_PASSWORD must be set."
     exit 2
 }
 if (-not (Test-Path -Path $OUTPUT_DIR)) {
@@ -457,38 +457,38 @@ if ($EMPTY_OUTPUT_DIR -eq 'true') {
 # ---------------------------
 # Build PSCredential from env
 # ---------------------------
-$secure = ConvertTo-SecureString $FLURO_PASS -AsPlainText -Force
-$flurocreds = [pscredential]::new($FLURO_USER, $secure)
+$secure = ConvertTo-SecureString $SUBSPLASH_PASS -AsPlainText -Force
+$subsplashcreds = [pscredential]::new($SUBSPLASH_USER, $secure)
 #endregion
 # ---------------------------
 
 #### Main Script Execution
 Write-Debug "Starting printplan.ps1 script execution."
-#region Verify Fluro credentials
-if (-not $flurocreds) {
-    Write-Debug "Fluro credentials not provided."
-    Write-Error "Fluro credentials not provided. Exiting."
+#region Verify Subsplash credentials
+if (-not $subsplashcreds) {
+    Write-Debug "Subsplash credentials not provided."
+    Write-Error "Subsplash credentials not provided. Exiting."
     exit 1
 }
 # Test the credentials by getting an auth token
-Write-Debug "Testing Fluro credentials..."
+Write-Debug "Testing Subsplash credentials..."
 try {
-    $fluroauth = Get-FluroAuthToken -FluroCreds $flurocreds
+    $subsplashauth = Get-SubsplashAuthToken -SubsplashCreds $subsplashcreds
 }
 catch {
-    Write-Debug "Function to authenticate with Fluro API failed."
-    Write-Error "Failed to authenticate with Fluro API. $_"
+    Write-Debug "Function to authenticate with Subsplash API failed."
+    Write-Error "Failed to authenticate with Subsplash API. $_"
     exit 1
 }
-if ($fluroauth.StatusCode -ne 200) {
-    Write-Debug "Fluro API authentication failed. Status code: $($fluroauth.StatusCode)"
-    Write-Debug "Fluro API authentication failed. Response: $($fluroauth.Response | ConvertTo-Json -Depth 10)"
-    Write-Error "Failed to authenticate with Fluro API. Please check your credentials."
+if ($subsplashauth.StatusCode -ne 200) {
+    Write-Debug "Subsplash API authentication failed. Status code: $($subsplashauth.StatusCode)"
+    Write-Debug "Subsplash API authentication failed. Response: $($subsplashauth.Response | ConvertTo-Json -Depth 10)"
+    Write-Error "Failed to authenticate with Subsplash API. Please check your credentials."
     exit 1
 }
 else {
-    Write-Host "Fluro API authentication successful." -ForegroundColor Green
-    $token = $fluroauth.Token
+    Write-Host "Subsplash API authentication successful." -ForegroundColor Green
+    $token = $subsplashauth.Token
 }
 #endregion
 
@@ -512,9 +512,9 @@ else {
     Write-Debug "Next Sunday: $nextSunday, End Date: $endDate"
     Write-Host "Searching for services from $nextSunday to $endDate in timezone $localTimezone." -ForegroundColor Green
 
-    $filterBody = New-FluroServiceFilter -StartDate $nextSunday -EndDate $endDate -Timezone $localTimezone
-    Write-Host "Getting list of services from Fluro API..." -ForegroundColor Green
-    $services = Get-FluroServices -AuthToken $token -FilterBody $filterBody
+    $filterBody = New-SubsplashServiceFilter -StartDate $nextSunday -EndDate $endDate -Timezone $localTimezone
+    Write-Host "Getting list of services from Subsplash API..." -ForegroundColor Green
+    $services = Get-SubsplashServices -AuthToken $token -FilterBody $filterBody
 
     if (-not $services -or $services.Count -eq 0) {
         Write-Error "No services found."
@@ -525,7 +525,7 @@ else {
     Write-Debug "Filtering services to only those with plans."
     $servicesWithPlans = @()
     foreach ($svc in $services) {
-        $svcDetails = Get-FluroServiceById -AuthToken $token -ServiceId $svc._id
+        $svcDetails = Get-SubsplashServiceById -AuthToken $token -ServiceId $svc._id
         if ($svcDetails -and $svcDetails.plans -and $svcDetails.plans.Count -gt 0) {
             $servicesWithPlans += $svc
         }
@@ -558,7 +558,7 @@ else {
 #region Get Service Details
 Write-Debug "Get Service Details"
     Write-Host "Getting service details for ID: $serviceid" -ForegroundColor Green
-    $serviceDetails = Get-FluroServiceById -AuthToken $token -ServiceId $serviceid
+    $serviceDetails = Get-SubsplashServiceById -AuthToken $token -ServiceId $serviceid
     if (-not $serviceDetails) {
         Write-Debug "Function to get service details failed. $_"
         Write-Error "Failed to retrieve service details. Exiting."
@@ -622,7 +622,7 @@ if (-not $serviceDetails -or -not $serviceDetails.plans -or $serviceDetails.plan
 }
 #Get complete plan details for the first plan
 Write-Host "Getting complete plan details for Plan ID: $($serviceDetails.plans[0]._id)" -ForegroundColor Green
-$planDetails = Get-FluroPlanDetails -AuthToken $token -PlanId $serviceDetails.plans[0]._id
+$planDetails = Get-SubsplashPlanDetails -AuthToken $token -PlanId $serviceDetails.plans[0]._id
 if (-not $planDetails) {
     Write-Error "Failed to retrieve plan details for Plan ID $($serviceDetails.plans[0]._id). Exiting."
     exit 1
