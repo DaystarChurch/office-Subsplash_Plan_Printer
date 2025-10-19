@@ -39,6 +39,7 @@ function Get-JsonFile {
     }
 }
 function Write-Log {
+    #Log levels: DEBUG, INFO, WARNING, ERROR
     param(
         [string]$Message,
         [string]$Level = "INFO"
