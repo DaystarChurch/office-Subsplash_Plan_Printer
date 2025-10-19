@@ -49,11 +49,11 @@ function Write-Log {
     # Define log level order
     $levels = @("DEBUG", "INFO", "WARNING", "ERROR", "VERBOSE")
     $levelOrder = @{
-        "DEBUG"   = 0
-        "INFO"    = 1
-        "WARNING" = 2
-        "ERROR"   = 3
-        "VERBOSE" = 4
+        "VERBOSE" = 0
+        "DEBUG"   = 1
+        "INFO"    = 2
+        "WARNING" = 3
+        "ERROR"   = 4
     }
     # Default to INFO if $LOGLEVEL is not set or invalid
     $currentLevel = $levelOrder[$LOGLEVEL]
