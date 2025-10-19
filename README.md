@@ -62,6 +62,8 @@ All configuration is supplied via environment variables or a `.env` file. The mo
 | PLAN_PROFILES_FILE  | (Optional) Path to a JSON file with plan profiles (e.g., `/data/profiles.json`)              | /data/profiles.json                           |
 | EMPTY_OUTPUT_DIR    | (Optional) If `true`, empties the output directory before generating new files (default: false)| true                                          |
 | KEEP_HTML           | (Optional) If `true`, keeps intermediate HTML files alongside PDFs (default: false)           | true                                          |
+| LOGPATH            | (Optional) Path to save log file (default: `/data/printplan.log`)                          | /data/printplan.log                        |
+| LOGLEVEL           | (Optional) Logging level: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `VERBOSE` (default: `INFO`)               | DEBUG                                         |
 
 **Precedence for profiles:**  
 `PLAN_PROFILES` (inline JSON) > `PLAN_PROFILES_FILE` (external file) > fallback to “All Teams” from plan.
