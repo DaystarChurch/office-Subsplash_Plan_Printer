@@ -413,6 +413,8 @@ function Convert-PlanHtmlToPdf {
 # ---------------------------
 #region Load Environment Variables
 # ---------------------------
+$LOGPATH   = (Get-EnvOrDefault 'LOGPATH' '/data/printplan.log')
+$LOGLEVEL  = (Get-EnvOrDefault 'LOGLEVEL' 'DEBUG')  # DEBUG, INFO, WARNING, ERROR
 $TIMEZONE    = (Get-EnvOrDefault 'TIMEZONE' 'America/Edmonton')   # IANA
 $OUTPUT_DIR  = (Get-EnvOrDefault 'OUTPUT_DIR' '/data')
 $EMPTY_OUTPUT_DIR = (Get-EnvOrDefault 'EMPTY_OUTPUT_DIR' 'false')
