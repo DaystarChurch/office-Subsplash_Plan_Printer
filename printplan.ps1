@@ -38,6 +38,16 @@ function Get-JsonFile {
         exit 2
     }
 }
+function Write-Log {
+    param(
+        [string]$Message,
+        [string]$Level = "INFO"
+    )
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $logEntry = "[$timestamp] - [$Level] - $Message"
+    Add-Content -Path $LOGPATH -Value $logEntry
+}
+
 # ---------------------------
 # Subsplash API functions
 # ---------------------------
