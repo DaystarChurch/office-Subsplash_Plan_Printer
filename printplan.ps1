@@ -475,10 +475,11 @@ $KEEP_HTML   = (Get-EnvOrDefault 'KEEP_HTML' 'false')
 
 $SUBSPLASH_USER  = Get-EnvOrDefault 'SUBSPLASH_USERNAME'
 $SUBSPLASH_PASS  = Get-EnvOrDefault 'SUBSPLASH_PASSWORD'
-
+$CURRENTTIME = Get-Date -UFormat "%A %m/%d/%Y %r %Z"
 # Init log file
 Write-Log "---------------------------"
 Write-Log "printplan.ps1 script started."
+Write-Log "Current System Time: $CURRENTTIME"
 Write-Log "Log level set to $LOGLEVEL"
 Write-Log "Output directory: $OUTPUT_DIR"
 Write-Log "Empty output directory: $EMPTY_OUTPUT_DIR"
