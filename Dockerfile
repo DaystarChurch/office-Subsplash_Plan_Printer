@@ -34,6 +34,8 @@ RUN . /etc/os-release \
 # --- App layout ---
 WORKDIR /app
 # Copy your script and optional CSS (rename the file to .ps1 for clarity)
+COPY entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
 COPY printplan.ps1 ./printplan.ps1
 COPY print.css ./print.css
 
@@ -41,5 +43,5 @@ COPY print.css ./print.css
 VOLUME ["/data"]
 
 # Default to PowerShell as the entry. We'll pass script parameters at 'docker run' time.
-ENTRYPOINT ["pwsh", "-File", "/app/printplan.ps1"]
+ENTRYPOINT ["/app/entrypoint.sh"]
 
