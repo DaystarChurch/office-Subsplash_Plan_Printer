@@ -287,9 +287,9 @@ function New-PlanHtml {
 
     # Versioning data
     $lastUpdatedUT = [datetime]::Parse($plan.updated)
-    $lastUpdatedLocal = [System.TimeZoneInfo]::ConvertTimeFromUtc($lastUpdatedUT, $localTZ).ToString("yyyy-MM-dd hh:mm:ss")
+    $lastUpdatedLocal = [System.TimeZoneInfo]::ConvertTimeFromUtc($lastUpdatedUT, $localTZ).ToString("yyyy-MM-dd hh:mm:ss tt")
     $lastUpdatedBy = $plan.updatedBy
-    $printTime = (Get-Date).ToString("yyyy-MM-dd hh:mm:ss")
+    $printTime = (Get-Date).ToString("yyyy-MM-dd hh:mm:ss tt")
 
     # Load CSS from file
     Write-Log "Trying to load CSS from file. Path: $CssPath" -Level "DEBUG"
