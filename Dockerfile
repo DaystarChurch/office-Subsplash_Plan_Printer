@@ -14,8 +14,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 # (Optional) add more fonts if your plans use them: fonts-noto, fonts-noto-cjk, etc.
 # Set the timezone
-ENV TZ=America/Edmonton
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+#ENV TZ=America/Edmonton
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TIMEZONE > /etc/timezone
 # --- Install WeasyPrint (Python) ---
 # Use the maintained package from PyPI; CLI "weasyprint" becomes available on PATH.
 RUN pip install --upgrade pip \
