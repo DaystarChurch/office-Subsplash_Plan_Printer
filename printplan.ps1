@@ -287,9 +287,9 @@ function New-PlanHtml {
 
     # Versioning data
     $lastUpdatedUT = [datetime]::Parse($plan.updated)
-    $lastUpdatedLocal = [System.TimeZoneInfo]::ConvertTimeFromUtc($lastUpdatedUT, $localTZ).ToString("yyyy-MM-dd hh:mm:ss")
+    $lastUpdatedLocal = [System.TimeZoneInfo]::ConvertTimeFromUtc($lastUpdatedUT, $localTZ).ToString("yyyy-MM-dd hh:mm:ss tt")
     $lastUpdatedBy = $plan.updatedBy
-    $printTime = (Get-Date).ToString("yyyy-MM-dd hh:mm:ss")
+    $printTime = (Get-Date).ToString("yyyy-MM-dd hh:mm:ss tt")
 
     # Load CSS from file
     Write-Log "Trying to load CSS from file. Path: $CssPath" -Level "DEBUG"
@@ -475,10 +475,11 @@ $KEEP_HTML   = (Get-EnvOrDefault 'KEEP_HTML' 'false')
 
 $SUBSPLASH_USER  = Get-EnvOrDefault 'SUBSPLASH_USERNAME'
 $SUBSPLASH_PASS  = Get-EnvOrDefault 'SUBSPLASH_PASSWORD'
-
+$CURRENTTIME = Get-Date -UFormat "%A %m/%d/%Y %r %Z"
 # Init log file
 Write-Log "---------------------------"
 Write-Log "printplan.ps1 script started."
+Write-Log "Current System Time: $CURRENTTIME"
 Write-Log "Log level set to $LOGLEVEL"
 Write-Log "Output directory: $OUTPUT_DIR"
 Write-Log "Empty output directory: $EMPTY_OUTPUT_DIR"

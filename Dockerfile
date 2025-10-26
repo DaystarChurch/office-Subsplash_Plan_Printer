@@ -13,7 +13,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       fontconfig fonts-dejavu tzdata ca-certificates curl gnupg \
     && rm -rf /var/lib/apt/lists/*
 # (Optional) add more fonts if your plans use them: fonts-noto, fonts-noto-cjk, etc.
-
+# Set the timezone
+ENV TIMEZONE=UTC
+RUN ln -snf /usr/share/zoneinfo/$TIMEZONE /etc/localtime && echo $TIMEZONE > /etc/timezone
 # --- Install WeasyPrint (Python) ---
 # Use the maintained package from PyPI; CLI "weasyprint" becomes available on PATH.
 RUN pip install --upgrade pip \
@@ -32,6 +34,8 @@ RUN . /etc/os-release \
 # --- App layout ---
 WORKDIR /app
 # Copy your script and optional CSS (rename the file to .ps1 for clarity)
+COPY entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
 COPY printplan.ps1 ./printplan.ps1
 COPY print.css ./print.css
 
@@ -39,4 +43,5 @@ COPY print.css ./print.css
 VOLUME ["/data"]
 
 # Default to PowerShell as the entry. We'll pass script parameters at 'docker run' time.
-ENTRYPOINT ["pwsh", "-File", "/app/printplan.ps1"]
+ENTRYPOINT ["/app/entrypoint.sh"]
+
