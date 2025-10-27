@@ -314,8 +314,19 @@ function New-PlanHtml {
     .duration { font-size: 0.9em; color: #888; display: block; }
 "@
     }
-    # Ensure @page is always present
-    $cssContent += "`n@page {margin: 0.25in; padding: 0; size: letter $orientation;}`n"
+        # Ensure @page is always present and add page numbers at bottom center
+        $cssContent += @"
+@page {
+    margin: 0.25in;
+    padding: 0;
+    size: letter $orientation;
+    @bottom-center {
+        content: "Page " counter(page) " of " counter(pages);
+        font-size: 0.9em;
+        color: #555;
+    }
+}
+"@
     # Build HTML
     $html = @"
 <html>
