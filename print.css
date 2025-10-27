@@ -22,13 +22,20 @@ ul {
 }
 
 .header-row {
-    display: flex;
-    flex-direction: row;
-    flex-flow: nowrap;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 1em;
-    width: auto;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: stretch;
+  gap: 1em; /* optional spacing between columns */
+}
+
+.header-row > div {
+  flex: 1 1 0;
+  min-width: 0; /* allows text to wrap */
+  word-break: break-word;
+  overflow-wrap: break-word;
+  padding: 0.5em;
+  box-sizing: border-box;
 }
 
 .table-container {
@@ -40,7 +47,7 @@ ul {
 .service-info {
     display: flex;
     flex-direction: column;
-    flex-grow: 3;
+   /* flex-grow: 3; */
 }
 
 .service-title {
@@ -57,7 +64,7 @@ ul {
 .plansheet-info {
     display: flex;
     flex-direction: column;
-    flex-grow: 1;
+    /*flex-grow: 1; */
 }
 
 .plan-name {
@@ -69,7 +76,7 @@ ul {
 .version-info {
     display: flex;
     flex-direction: column;
-    flex-grow: 1;
+    /*flex-grow: 1;*/
     margin-left: auto;
     text-align: right;
     font-size: 0.9em;

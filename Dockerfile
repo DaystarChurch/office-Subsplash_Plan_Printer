@@ -42,6 +42,6 @@ COPY print.css ./print.css
 # The container will read/write configs and PDFs in /data (mapped from the host)
 VOLUME ["/data"]
 
-# Default to PowerShell as the entry. We'll pass script parameters at 'docker run' time.
+# --- Entrypoint ---
 ENTRYPOINT ["/app/entrypoint.sh"]
 

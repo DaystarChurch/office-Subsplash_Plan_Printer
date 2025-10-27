@@ -335,9 +335,9 @@ $cssContent
         <div class="plan-name">$PlanName</div>
     </div>
     <div class="version-info">
-        <div><strong>Last updated:</strong> $lastUpdatedLocal</div>
-        <div><strong>Updated by:</strong> $lastUpdatedBy</div>
-        <div><strong>Printed:</strong> $printTime</div>
+        <div class="last-updated"><strong>Last updated:</strong> $lastUpdatedLocal</div>
+        <div class="updated-by"><strong>Updated by:</strong> $lastUpdatedBy</div>
+        <div class="printed"><strong>Printed:</strong> $printTime</div>
     </div>
 </div>
 <table>
